@@ -1,0 +1,770 @@
+openapi: 3.0.3
+info:
+  title: VMTO API
+  version: 0.1.0
+  description: |
+    VM Transfer Orchestrator API — 企業級虛擬機遷移編排工具。
+    支援 vSphere → Proxmox VE 遷移，提供任務管理、連線管理、產物查詢與授權管理。
+  contact:
+    name: VMTO Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:5000
+    description: Local development
+
+tags:
+  - name: Jobs
+    description: 遷移任務管理
+  - name: Connections
+    description: 連線（vSphere / PVE）管理
+  - name: Artifacts
+    description: 遷移產物查詢
+  - name: License
+    description: 授權管理
+
+paths:
+  /api/jobs:
+    get:
+      tags: [Jobs]
+      summary: 列出遷移任務
+      operationId: listJobs
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/JobStatus'
+      responses:
+        '200':
+          description: 任務列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedJobList'
+    post:
+      tags: [Jobs]
+      summary: 建立遷移任務
+      operationId: createJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJobRequest'
+      responses:
+        '201':
+          description: 任務已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: 請求參數錯誤
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/jobs/{id}:
+    get:
+      tags: [Jobs]
+      summary: 取得任務詳情
+      operationId: getJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: 任務詳情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '404':
+          description: 任務不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/jobs/{id}/cancel:
+    post:
+      tags: [Jobs]
+      summary: 取消任務
+      operationId: cancelJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: 已發送取消請求
+        '404':
+          description: 任務不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 任務狀態不允許取消
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/jobs/{id}/pause:
+    post:
+      tags: [Jobs]
+      summary: 暫停任務
+      operationId: pauseJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: 已發送暫停請求
+        '404':
+          description: 任務不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 任務狀態不允許暫停
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/jobs/{id}/resume:
+    post:
+      tags: [Jobs]
+      summary: 恢復任務
+      operationId: resumeJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: 已發送恢復請求
+        '404':
+          description: 任務不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 任務狀態不允許恢復
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/jobs/{id}/retry:
+    post:
+      tags: [Jobs]
+      summary: 重試失敗步驟
+      operationId: retryFailedSteps
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: 已發送重試請求
+        '404':
+          description: 任務不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 任務狀態不允許重試
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/jobs/{id}/progress:
+    get:
+      tags: [Jobs]
+      summary: 取得任務進度
+      operationId: getJobProgress
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: 任務進度
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobProgress'
+        '404':
+          description: 任務不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/connections:
+    get:
+      tags: [Connections]
+      summary: 列出連線
+      operationId: listConnections
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: 連線列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedConnectionList'
+    post:
+      tags: [Connections]
+      summary: 建立連線
+      operationId: createConnection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConnectionRequest'
+      responses:
+        '201':
+          description: 連線已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '400':
+          description: 請求參數錯誤
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/connections/{id}:
+    get:
+      tags: [Connections]
+      summary: 取得連線詳情
+      operationId: getConnection
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+      responses:
+        '200':
+          description: 連線詳情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '404':
+          description: 連線不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags: [Connections]
+      summary: 刪除連線
+      operationId: deleteConnection
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+      responses:
+        '204':
+          description: 連線已刪除
+        '404':
+          description: 連線不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/connections/{id}/validate:
+    post:
+      tags: [Connections]
+      summary: 驗證連線
+      operationId: validateConnection
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+      responses:
+        '200':
+          description: 連線驗證成功
+        '404':
+          description: 連線不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: 連線驗證失敗
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/artifacts:
+    get:
+      tags: [Artifacts]
+      summary: 列出產物
+      operationId: listArtifacts
+      parameters:
+        - name: jobId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 遷移任務 ID
+      responses:
+        '200':
+          description: 產物列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Artifact'
+
+  /api/license:
+    get:
+      tags: [License]
+      summary: 取得目前授權
+      operationId: getLicense
+      responses:
+        '200':
+          description: 授權資訊
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/License'
+        '404':
+          description: 無有效授權
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/license/activate:
+    post:
+      tags: [License]
+      summary: 啟用授權
+      operationId: activateLicense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateLicenseRequest'
+      responses:
+        '200':
+          description: 授權啟用成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/License'
+        '400':
+          description: 授權金鑰無效
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+components:
+  parameters:
+    JobId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: 遷移任務 ID
+
+    ConnectionId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: 連線 ID
+
+  schemas:
+    JobStatus:
+      type: string
+      enum:
+        - Created
+        - Queued
+        - Running
+        - Pausing
+        - Paused
+        - Resuming
+        - Cancelling
+        - Cancelled
+        - Failed
+        - Succeeded
+
+    StepStatus:
+      type: string
+      enum:
+        - Pending
+        - Running
+        - Retrying
+        - Failed
+        - Skipped
+        - Succeeded
+
+    MigrationStrategy:
+      type: string
+      enum:
+        - FullCopy
+        - Incremental
+
+    ConnectionType:
+      type: string
+      enum:
+        - VSphere
+        - ProxmoxVE
+
+    ArtifactFormat:
+      type: string
+      enum:
+        - Vmdk
+        - Qcow2
+        - Raw
+
+    LicensePlan:
+      type: string
+      enum:
+        - Community
+        - Professional
+        - Enterprise
+
+    StorageType:
+      type: string
+      enum:
+        - S3
+        - Local
+
+    Job:
+      type: object
+      required: [id, correlationId, sourceConnectionId, targetConnectionId, strategy, status, progress, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        correlationId:
+          type: string
+          format: uuid
+        sourceConnectionId:
+          type: string
+          format: uuid
+        targetConnectionId:
+          type: string
+          format: uuid
+        storageTarget:
+          $ref: '#/components/schemas/StorageTarget'
+        strategy:
+          $ref: '#/components/schemas/MigrationStrategy'
+        options:
+          $ref: '#/components/schemas/MigrationOptions'
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        progress:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        result:
+          type: string
+          nullable: true
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobStep'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    JobStep:
+      type: object
+      required: [id, name, order, status, progress, retryCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: ExportVmdk
+        order:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StepStatus'
+        progress:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        retryCount:
+          type: integer
+        maxRetries:
+          type: integer
+        errorMessage:
+          type: string
+          nullable: true
+        logsUri:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    JobProgress:
+      type: object
+      required: [jobId, status, overallProgress, steps]
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        overallProgress:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobStep'
+
+    StorageTarget:
+      type: object
+      required: [storageType, endpoint, bucketOrPath]
+      properties:
+        storageType:
+          $ref: '#/components/schemas/StorageType'
+        endpoint:
+          type: string
+          example: http://minio:9000
+        bucketOrPath:
+          type: string
+          example: vmto-artifacts
+        region:
+          type: string
+          nullable: true
+
+    MigrationOptions:
+      type: object
+      properties:
+        convertFormat:
+          $ref: '#/components/schemas/ArtifactFormat'
+        verifyChecksum:
+          type: boolean
+          default: true
+        deleteSourceAfter:
+          type: boolean
+          default: false
+
+    Connection:
+      type: object
+      required: [id, name, type, endpoint, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: vCenter-Production
+        type:
+          $ref: '#/components/schemas/ConnectionType'
+        endpoint:
+          type: string
+          example: https://vcenter.example.com/sdk
+        validatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Artifact:
+      type: object
+      required: [id, jobId, fileName, format, sizeBytes, storageUri, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        jobId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+          example: vm-disk-001.qcow2
+        format:
+          $ref: '#/components/schemas/ArtifactFormat'
+        checksumAlgorithm:
+          type: string
+          example: SHA256
+        checksumValue:
+          type: string
+          example: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        sizeBytes:
+          type: integer
+          format: int64
+        storageUri:
+          type: string
+          example: s3://vmto-artifacts/jobs/abc123/vm-disk-001.qcow2
+        createdAt:
+          type: string
+          format: date-time
+
+    License:
+      type: object
+      required: [id, plan, maxConcurrentJobs, isValid, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        plan:
+          $ref: '#/components/schemas/LicensePlan'
+        features:
+          type: array
+          items:
+            type: string
+          example: [incremental-sync, multi-worker, api-access]
+        maxConcurrentJobs:
+          type: integer
+          example: 5
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        isValid:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateJobRequest:
+      type: object
+      required: [sourceConnectionId, targetConnectionId, strategy]
+      properties:
+        sourceConnectionId:
+          type: string
+          format: uuid
+        targetConnectionId:
+          type: string
+          format: uuid
+        storageTarget:
+          $ref: '#/components/schemas/StorageTarget'
+        strategy:
+          $ref: '#/components/schemas/MigrationStrategy'
+        options:
+          $ref: '#/components/schemas/MigrationOptions'
+
+    CreateConnectionRequest:
+      type: object
+      required: [name, type, endpoint, secret]
+      properties:
+        name:
+          type: string
+          example: vCenter-Production
+        type:
+          $ref: '#/components/schemas/ConnectionType'
+        endpoint:
+          type: string
+          example: https://vcenter.example.com/sdk
+        secret:
+          type: string
+          description: 連線密碼或 API Token（傳輸後加密存儲，API 不回傳）
+          example: my-secret-password
+
+    ActivateLicenseRequest:
+      type: object
+      required: [licenseKey]
+      properties:
+        licenseKey:
+          type: string
+          example: VMTO-XXXX-XXXX-XXXX
+        bindings:
+          type: object
+          additionalProperties:
+            type: string
+          description: 可選的綁定資訊（如機器 ID）
+          example:
+            machineId: abc123
+
+    PaginatedJobList:
+      type: object
+      required: [items, page, pageSize, totalCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalCount:
+          type: integer
+
+    PaginatedConnectionList:
+      type: object
+      required: [items, page, pageSize, totalCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Connection'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalCount:
+          type: integer
+
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string

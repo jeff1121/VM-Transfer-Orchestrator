@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vmto.fullname" . }}-config
+  labels:
+    {{- include "vmto.labels" . | nindent 4 }}
+data:
+  ConnectionStrings__DefaultConnection: "Host={{ .Values.config.postgres.host }};Port={{ .Values.config.postgres.port }};Database={{ .Values.config.postgres.database }}"
+  ConnectionStrings__Redis: "{{ .Values.config.redis.host }}:{{ .Values.config.redis.port }}"
+  ConnectionStrings__RabbitMQ: "amqp://{{ .Values.config.rabbitmq.host }}:{{ .Values.config.rabbitmq.port }}"
+  Storage__S3__Endpoint: {{ .Values.config.s3.endpoint | quote }}
+  Storage__S3__Bucket: {{ .Values.config.s3.bucket | quote }}
+  {{- if .Values.config.corsOrigins }}
+  CORS_ORIGINS: {{ .Values.config.corsOrigins | quote }}
+  {{- end }}

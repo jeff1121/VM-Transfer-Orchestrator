@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VMTO.Application\VMTO.Application.csproj" />
+    <ProjectReference Include="..\VMTO.Infrastructure\VMTO.Infrastructure.csproj" />
+    <ProjectReference Include="..\VMTO.Shared\VMTO.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.23" />
+    <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="9.0.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.4" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

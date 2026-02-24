@@ -1,0 +1,61 @@
+api:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  env:
+    aspnetcoreEnvironment: Production
+    mockMode: "false"
+
+worker:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "4"
+      memory: 2Gi
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilization: 65
+  env:
+    mockMode: "false"
+
+frontend:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: vmto.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: api
+        - path: /hubs
+          pathType: Prefix
+          service: api
+  tls:
+    - secretName: vmto-tls
+      hosts:
+        - vmto.example.com

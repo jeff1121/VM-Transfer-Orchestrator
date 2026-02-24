@@ -1,0 +1,39 @@
+api:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  env:
+    aspnetcoreEnvironment: Development
+    mockMode: "true"
+
+worker:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  hpa:
+    enabled: false
+  env:
+    mockMode: "true"
+
+frontend:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+ingress:
+  enabled: false

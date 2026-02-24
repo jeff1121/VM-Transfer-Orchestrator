@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-VMTO.Worker-f11c14cf-e610-44ee-833d-685619294efb</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hangfire" Version="1.8.23" />
+    <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="9.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VMTO.Application\VMTO.Application.csproj" />
+    <ProjectReference Include="..\VMTO.Infrastructure\VMTO.Infrastructure.csproj" />
+    <ProjectReference Include="..\VMTO.Shared\VMTO.Shared.csproj" />
+  </ItemGroup>
+</Project>

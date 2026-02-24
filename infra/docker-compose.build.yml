@@ -1,0 +1,18 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.api
+    image: vmto-api:${TAG:-latest}
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.worker
+    image: vmto-worker:${TAG:-latest}
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.frontend
+    image: vmto-frontend:${TAG:-latest}

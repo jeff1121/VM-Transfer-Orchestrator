@@ -1,0 +1,33 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.sln.docstates
+.vs/
+*.DotSettings.user
+TestResults/
+
+## Node / Frontend
+node_modules/
+dist/
+.vite/
+
+## IDE
+.idea/
+*.swp
+*.swo
+*~
+.vscode/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Environment
+.env
+*.local
+
+## Build artifacts
+publish/
+out/

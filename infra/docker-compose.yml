@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vmto}
+      POSTGRES_USER: ${POSTGRES_USER:-vmto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vmto_dev_pass}
+    ports: ["5432:5432"]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vmto}"]
+      interval: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports: ["5672:5672", "15672:15672"]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-vmto}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-vmto_dev_pass}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports: ["9000:9000", "9001:9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-vmto}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-vmto_dev_pass}
+    volumes: [minio_data:/data]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.api
+    ports: ["5000:8080"]
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
+      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-vmto}:${RABBITMQ_PASS:-vmto_dev_pass}@rabbitmq:5672
+      - Storage__S3__Endpoint=http://minio:9000
+      - Storage__S3__AccessKey=${MINIO_ROOT_USER:-vmto}
+      - Storage__S3__SecretKey=${MINIO_ROOT_PASSWORD:-vmto_dev_pass}
+      - Storage__S3__Bucket=${MINIO_BUCKET:-vmto-artifacts}
+      - MockMode=${MOCK_MODE:-true}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      minio: { condition: service_healthy }
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.worker
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
+      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-vmto}:${RABBITMQ_PASS:-vmto_dev_pass}@rabbitmq:5672
+      - Storage__S3__Endpoint=http://minio:9000
+      - Storage__S3__AccessKey=${MINIO_ROOT_USER:-vmto}
+      - Storage__S3__SecretKey=${MINIO_ROOT_PASSWORD:-vmto_dev_pass}
+      - Storage__S3__Bucket=${MINIO_BUCKET:-vmto-artifacts}
+      - MockMode=${MOCK_MODE:-true}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    deploy:
+      replicas: ${WORKER_REPLICAS:-2}
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/dockerfiles/Dockerfile.frontend
+    ports: ["8080:80"]
+    depends_on: [api]
+
+volumes:
+  postgres_data:
+  minio_data:

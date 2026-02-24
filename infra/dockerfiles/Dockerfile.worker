@@ -1,0 +1,19 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS build
+WORKDIR /src
+COPY *.sln Directory.Build.props ./
+COPY src/VMTO.Shared/*.csproj src/VMTO.Shared/
+COPY src/VMTO.Domain/*.csproj src/VMTO.Domain/
+COPY src/VMTO.Application/*.csproj src/VMTO.Application/
+COPY src/VMTO.Infrastructure/*.csproj src/VMTO.Infrastructure/
+COPY src/VMTO.API/*.csproj src/VMTO.API/
+COPY src/VMTO.Worker/*.csproj src/VMTO.Worker/
+COPY src/VMTO.LicenseServer/*.csproj src/VMTO.LicenseServer/
+RUN dotnet restore src/VMTO.Worker/VMTO.Worker.csproj
+COPY src/ src/
+RUN dotnet publish src/VMTO.Worker/VMTO.Worker.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends qemu-utils && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=build /app .
+ENTRYPOINT ["dotnet", "VMTO.Worker.dll"]

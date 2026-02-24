@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VMTO.Application\VMTO.Application.csproj" />
+    <ProjectReference Include="..\VMTO.Domain\VMTO.Domain.csproj" />
+    <ProjectReference Include="..\VMTO.Shared\VMTO.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.Rabbitmq" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.18.7" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.15.0-beta.1" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.11.3" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>
