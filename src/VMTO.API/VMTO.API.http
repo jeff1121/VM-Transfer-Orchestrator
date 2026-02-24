@@ -1,6 +1,55 @@
 @VMTO.API_HostAddress = http://localhost:5038
 
-GET {{VMTO.API_HostAddress}}/weatherforecast/
+### Health Check
+GET {{VMTO.API_HostAddress}}/health
+Accept: application/json
+
+### 列出所有遷移任務
+GET {{VMTO.API_HostAddress}}/api/jobs?page=1&pageSize=20
+Accept: application/json
+
+### 取得單一任務
+GET {{VMTO.API_HostAddress}}/api/jobs/{{jobId}}
+Accept: application/json
+
+### 建立遷移任務
+POST {{VMTO.API_HostAddress}}/api/jobs
+Content-Type: application/json
+
+{
+  "sourceConnectionId": "00000000-0000-0000-0000-000000000001",
+  "targetConnectionId": "00000000-0000-0000-0000-000000000002",
+  "storageTarget": {
+    "type": "S3",
+    "endpoint": "http://localhost:9000",
+    "bucketOrPath": "vmto-artifacts"
+  },
+  "strategy": "FullCopy",
+  "options": {
+    "targetDiskFormat": "Qcow2",
+    "deleteSourceAfter": false,
+    "verifyChecksum": true,
+    "maxRetries": 3
+  }
+}
+
+### 列出所有連線
+GET {{VMTO.API_HostAddress}}/api/connections?page=1&pageSize=20
+Accept: application/json
+
+### 建立連線
+POST {{VMTO.API_HostAddress}}/api/connections
+Content-Type: application/json
+
+{
+  "name": "vSphere Lab",
+  "type": "VSphere",
+  "endpoint": "https://vcenter.lab.local",
+  "secret": "my-api-key"
+}
+
+### 取得授權資訊
+GET {{VMTO.API_HostAddress}}/api/license
 Accept: application/json
 
 ###

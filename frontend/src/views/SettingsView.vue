@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import packageJson from '../../../package.json'
 
+const appVersion = packageJson.version
 const licenseKey = ref('')
 const activating = ref(false)
 const activationResult = ref<string | null>(null)
@@ -28,7 +30,7 @@ const activateLicense = async () => {
     <section class="panel">
       <h2>授權資訊</h2>
       <div class="info-row"><span class="label">產品</span><span>VM Transfer Orchestrator</span></div>
-      <div class="info-row"><span class="label">版本</span><span>0.1.0</span></div>
+      <div class="info-row"><span class="label">版本</span><span>{{ appVersion }}</span></div>
       <div class="info-row"><span class="label">授權狀態</span><span class="badge-default">未啟用</span></div>
     </section>
 

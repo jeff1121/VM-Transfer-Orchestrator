@@ -13,7 +13,13 @@ COPY src/ src/
 RUN dotnet publish src/VMTO.Worker/VMTO.Worker.csproj -c Release -o /app --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends qemu-utils && rm -rf /var/lib/apt/lists/*
+LABEL org.opencontainers.image.title="VMTO Worker" \
+      org.opencontainers.image.version="${VERSION:-0.1.0}" \
+      org.opencontainers.image.description="VM Transfer Orchestrator — Background Worker" \
+      org.opencontainers.image.source="https://github.com/jeff1121/VM-Transfer-Orchestrator"
+RUN apt-get update && apt-get install -y --no-install-recommends qemu-utils && rm -rf /var/lib/apt/lists/* \
+    && adduser --disabled-password --gecos '' appuser
 WORKDIR /app
 COPY --from=build /app .
+USER appuser
 ENTRYPOINT ["dotnet", "VMTO.Worker.dll"]

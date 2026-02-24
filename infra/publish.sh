@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TAG="${1:-latest}"
+cd "$(dirname "$0")"
+
+# Read version from version.json
+VERSION=$(grep -o '"version": *"[^"]*"' ../version.json | head -1 | cut -d'"' -f4)
+TAG="${1:-$VERSION}"
 REGISTRY="${REGISTRY:-}"
 
-echo "Building VMTO images with tag: $TAG"
+echo "Building VMTO images — version: $VERSION, tag: $TAG"
 
-docker compose -f docker-compose.build.yml build
+VERSION=$VERSION TAG=$TAG docker compose -f docker-compose.build.yml build
 
 if [ -n "$REGISTRY" ]; then
     for svc in api worker frontend; do

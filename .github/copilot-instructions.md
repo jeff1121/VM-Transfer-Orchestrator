@@ -1,5 +1,8 @@
 # Copilot Instructions — VMTO (VM Transfer Orchestrator)
 
+## Chat , Code Comments , Documentation Language
+Use Traditional Chinese (繁體中文) for all user-facing documentation, comments, and chat messages.
+
 ## Build, Test, Lint
 
 ```bash
@@ -22,7 +25,19 @@ cd frontend && npm run type-check               # TypeScript check
 
 # Infrastructure (Docker Compose)
 cd infra && cp .env.example .env && docker compose up -d
+
+# Container Build with Version
+cd infra && VERSION=0.1.0 ./publish.sh
 ```
+
+## Version Management
+
+All component versions are centralized:
+- `version.json` — Single source of truth
+- `Directory.Build.props` → `VersionPrefix` — All .NET assemblies
+- `frontend/package.json` → `version` — Frontend
+- `helm/Chart.yaml` → `appVersion` — Helm deployment
+- Container images use OCI labels (`org.opencontainers.image.version`)
 
 ## Architecture
 

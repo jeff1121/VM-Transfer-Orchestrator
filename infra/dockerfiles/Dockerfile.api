@@ -13,7 +13,13 @@ COPY src/ src/
 RUN dotnet publish src/VMTO.API/VMTO.API.csproj -c Release -o /app --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS runtime
+LABEL org.opencontainers.image.title="VMTO API" \
+      org.opencontainers.image.version="${VERSION:-0.1.0}" \
+      org.opencontainers.image.description="VM Transfer Orchestrator — API Server" \
+      org.opencontainers.image.source="https://github.com/jeff1121/VM-Transfer-Orchestrator"
+RUN adduser --disabled-password --gecos '' appuser
 WORKDIR /app
 COPY --from=build /app .
+USER appuser
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "VMTO.API.dll"]

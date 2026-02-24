@@ -1,6 +1,6 @@
 # Tasks — VMTO (VM Transfer Orchestrator)
 
-> All tasks completed. ✅
+> Phase 1–7 已完成 ✅ | Phase 8 版本管理與審查 ✅
 
 ---
 
@@ -170,3 +170,40 @@
   - `IncrementalStrategy` implementation
   - Additional step consumers: `EnableCBT`, `IncrementalPull`, `ApplyDelta`, `FinalSyncCutover`
   - Documentation: architecture guide + phased rollout plan in `docs/`
+
+---
+
+## Phase 8: 版本管理、審查與安全掃描
+
+- [x] **8-code-review** — 全專案程式碼審查
+  - 各層 Code Review（Shared / Domain / Application / Infrastructure / API / Worker / Frontend / Infra / Helm）
+  - 產出 `docs/code-review-report.md` 報告（含評分、問題清單、改進建議）
+
+- [x] **8-security-scan** — 安全掃描
+  - OWASP Top 10 覆蓋掃描
+  - 產出 `docs/security-scan-report.md` 報告（含 24 項發現、修復優先級）
+
+- [x] **8-versioning** — 集中式版本管理
+  - `version.json` 作為 Single Source of Truth
+  - `Directory.Build.props` — .NET 所有組件 VersionPrefix / AssemblyVersion / FileVersion
+  - `frontend/package.json` — npm 版本
+  - `helm/Chart.yaml` — appVersion
+  - `ActivitySources.Version` — 從 Assembly 自動讀取
+  - Container Image OCI Labels（`org.opencontainers.image.version`）
+  - `docker-compose.build.yml` — Image tag 使用版本號
+  - `publish.sh` — 自動讀取 version.json 並注入 build args
+  - `infra/.env.example` — 新增 `VERSION` 變數
+  - `.dockerignore` — 減小 build context
+
+- [x] **8-security-hardening** — 安全強化
+  - Dockerfile 全部改為非 root 使用者執行
+  - nginx 加入安全回應標頭（X-Content-Type-Options, X-Frame-Options, CSP, Referrer-Policy）
+  - nginx `server_tokens off` 隱藏版本
+  - nginx `client_max_body_size 10G` 支援大型 VMDK
+  - SignalR proxy timeout 設為 3600s
+
+- [x] **8-doc-update** — 文件更新
+  - README 新增版本管理章節
+  - README 新增報告文件索引
+  - VMTO.API.http 更新為實際 endpoint
+  - Tasks.md 新增 Phase 8

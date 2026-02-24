@@ -1,5 +1,8 @@
 # VMTO — VM Transfer Orchestrator
 
+> **版本：** 0.1.0  
+> **授權：** MIT License
+
 企業級虛擬機遷移編排工具，支援 **vSphere → Proxmox VE** 遷移。透過 Saga 編排模式自動完成 VMDK 匯出、磁碟格式轉換、物件儲存上傳、匯入 PVE 與驗證等完整流程，並提供即時進度追蹤與中斷 / 重試機制。
 
 ---
@@ -199,6 +202,16 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d
 
 此命令會建置 API、Worker、Frontend 容器並連同基礎設施一起啟動。Worker 預設啟動 2 個副本。
 
+Container Image 預設使用 `version.json` 中的版本號作為 tag。亦可手動指定：
+
+```bash
+# 指定版本建置
+cd infra && VERSION=0.2.0 ./publish.sh
+
+# 推送到 registry
+REGISTRY=ghcr.io/jeff1121 VERSION=0.2.0 ./publish.sh
+```
+
 ### Kubernetes (Helm)
 
 ```bash
@@ -206,6 +219,28 @@ helm install vmto helm/ -f helm/values-prod.yaml
 ```
 
 Helm Chart 包含 API、Worker、Frontend 的 Deployment/Service，以及可選的 Ingress 與 HPA 設定。詳見 `helm/values.yaml`。
+
+---
+
+## 版本管理
+
+VMTO 採用集中式版本管理，所有元件版本統一由以下檔案控制：
+
+| 元件 | 版本來源 | 說明 |
+|------|----------|------|
+| .NET Backend | `Directory.Build.props` → `VersionPrefix` | 所有 .NET 組件共用 |
+| Frontend | `frontend/package.json` → `version` | npm 版本 |
+| Container Images | `version.json` + `docker-compose.build.yml` | OCI Label + Image Tag |
+| Helm Chart | `helm/Chart.yaml` → `appVersion` | K8s 部署版本 |
+| OpenTelemetry | `ActivitySources.Version` | 從 Assembly Version 自動讀取 |
+
+### 版本號升級流程
+
+1. 更新 `version.json` 中的 `version` 欄位
+2. 同步更新 `Directory.Build.props` 的 `VersionPrefix` / `AssemblyVersion` / `FileVersion`
+3. 同步更新 `frontend/package.json` 的 `version`
+4. 同步更新 `helm/Chart.yaml` 的 `appVersion`
+5. 提交並建立 Git Tag：`git tag v0.2.0`
 
 ---
 
@@ -217,6 +252,17 @@ Helm Chart 包含 API、Worker、Frontend 的 Deployment/Service，以及可選�
 | [ADR-002](docs/adr/002-hangfire-scheduling.md) | Hangfire 輔助排程 | 保留 Hangfire 處理定期清理、增量同步排程等 cron 類任務，與 MassTransit 互補。 |
 | [ADR-003](docs/adr/003-minio-default-storage.md) | MinIO 預設儲存 | 選用 MinIO 作為預設物件儲存，S3 相容 API、Docker Compose 自帶、可無縫切換至 Ceph。 |
 | [ADR-004](docs/adr/004-dataprotection-encryption.md) | DataProtection 加密 | 使用 ASP.NET DataProtection 加密連線密碼，預留 Vault / KMS 介面。 |
+
+---
+
+## 報告文件
+
+| 文件 | 說明 |
+|------|------|
+| [程式碼審查報告](docs/code-review-report.md) | 全專案 Code Review 結果，含各層評分與改進建議 |
+| [安全掃描報告](docs/security-scan-report.md) | OWASP Top 10 安全掃描，含漏洞清單與修復優先級 |
+| [增量同步架構](docs/incremental-sync.md) | CBT 增量同步設計文件 |
+| [OpenAPI 規格](docs/openapi.yaml) | API 介面規格 |
 
 ---
 

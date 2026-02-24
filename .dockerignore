@@ -1,0 +1,28 @@
+.git
+.github
+.gitignore
+.vscode
+.idea
+*.md
+*.swo
+*.swp
+*~
+LICENSE
+
+# Test projects
+tests/
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+**/bin/
+**/obj/
+dist/
+.vite/
+
+# Docker & Infra docs
+docs/
+helm/
+infra/*.md
