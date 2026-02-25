@@ -65,8 +65,15 @@ public sealed class LocalStorageAdapter : IStorageAdapter
 
     public Task<Result<bool>> ExistsAsync(string key, CancellationToken ct = default)
     {
-        var exists = File.Exists(GetFullPath(key));
-        return Task.FromResult(Result<bool>.Success(exists));
+        try
+        {
+            var exists = File.Exists(GetFullPath(key));
+            return Task.FromResult(Result<bool>.Success(exists));
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult(Result<bool>.Failure(ErrorCodes.General.InternalError, $"Local exists check failed: {ex.Message}"));
+        }
     }
 
     public async Task<Result<string>> GetChecksumAsync(string key, CancellationToken ct = default)
@@ -87,5 +94,15 @@ public sealed class LocalStorageAdapter : IStorageAdapter
         }
     }
 
-    private string GetFullPath(string key) => Path.Combine(_basePath, key);
+    private string GetFullPath(string key)
+    {
+        var basePath = Path.GetFullPath(_basePath);
+        var fullPath = Path.GetFullPath(Path.Combine(basePath, key));
+        var relativePath = Path.GetRelativePath(basePath, fullPath);
+
+        if (relativePath == ".." || relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            throw new InvalidOperationException("Path traversal detected.");
+
+        return fullPath;
+    }
 }
