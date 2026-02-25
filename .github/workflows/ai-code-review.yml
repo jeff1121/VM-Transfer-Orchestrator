@@ -1,0 +1,221 @@
+name: 🔍 AI 程式碼審查與自動修正
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  ai-code-review:
+    name: AI 程式碼審查
+    runs-on: ubuntu-latest
+    steps:
+      # ── 1. 取得程式碼 ──────────────────────────────────────────────
+      - name: 📥 Checkout 程式碼
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # ── 2. 取得本次 Push 的 diff ───────────────────────────────────
+      - name: 📊 取得本次 Commit 差異
+        id: get-diff
+        run: |
+          echo "取得 git diff..."
+          DIFF=$(git diff HEAD~1 HEAD -- '*.cs' '*.ts' '*.vue' '*.js' '*.json' '*.yaml' '*.yml' 2>/dev/null || git diff HEAD -- '*.cs' '*.ts' '*.vue' '*.js' '*.json' '*.yaml' '*.yml')
+          if [ -z "$DIFF" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "本次 Push 無可審查的程式碼變更"
+          else
+            DIFF_TRUNCATED=$(echo "$DIFF" | head -c 10000)
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "diff_b64=$(echo "$DIFF_TRUNCATED" | base64 -w 0)" >> $GITHUB_OUTPUT
+          fi
+
+      # ── 3. 設定 .NET 環境 ──────────────────────────────────────────
+      - name: ⚙️ 設定 .NET 環境
+        if: steps.get-diff.outputs.skip != 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: ⚙️ 設定 Node.js 環境
+        if: steps.get-diff.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── 4. 呼叫 OpenAI 進行 Code Review ───────────────────────────
+      - name: 🤖 AI 程式碼審查分析
+        if: steps.get-diff.outputs.skip != 'true'
+        id: ai-review
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DIFF_CONTENT=$(echo "${{ steps.get-diff.outputs.diff_b64 }}" | base64 -d)
+          COMMIT_SHA="${{ github.sha }}"
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          AUTHOR=$(git log -1 --pretty=%an)
+
+          PROMPT="你是一位資深程式碼審查員，專注於 Clean Architecture、DDD、C#/.NET 8、Vue3/TypeScript 最佳實踐。
+
+          請審查以下 git diff，並以**繁體中文**回應。
+
+          審查重點：
+          1. 程式碼品質問題（命名、可讀性、複雜度）
+          2. Clean Architecture 分層違規（例如：Domain 層不可引用框架）
+          3. 潛在的 Bug 或邏輯錯誤
+          4. 效能問題
+          5. 缺少錯誤處理或 CancellationToken 傳遞
+
+          Commit 資訊：
+          - SHA: ${COMMIT_SHA:0:7}
+          - 作者: $AUTHOR
+          - 訊息: $COMMIT_MSG
+
+          Git Diff（部分）：
+          \`\`\`
+          $DIFF_CONTENT
+          \`\`\`
+
+          請依以下格式回應（繁體中文）：
+
+          ## 📋 程式碼審查報告
+
+          ### ✅ 優點
+          （列出做得好的部分）
+
+          ### ⚠️ 發現問題
+          （依嚴重性排序，每項包含：問題描述、影響、建議修正方式）
+
+          ### 🔧 修正建議摘要
+          （條列式，簡潔）
+
+          ### 📊 審查評分
+          - 整體品質：X/10
+          - Clean Architecture 合規：X/10
+          - 可維護性：X/10"
+
+          if [ -n "$OPENAI_API_KEY" ]; then
+            RESPONSE=$(curl -s -X POST https://api.openai.com/v1/chat/completions \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $OPENAI_API_KEY" \
+              -d "$(jq -n \
+                --arg prompt "$PROMPT" \
+                '{
+                  model: "gpt-4o",
+                  messages: [{role: "user", content: $prompt}],
+                  max_tokens: 2000,
+                  temperature: 0.3
+                }')")
+            REVIEW_CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // "AI 審查服務暫時無法使用，請手動審查。"')
+          else
+            REVIEW_CONTENT="## 📋 程式碼審查報告
+
+          > ⚠️ 未設定 OPENAI_API_KEY，AI 分析功能未啟用。
+          > 請至 Settings → Secrets and variables → Actions 新增 \`OPENAI_API_KEY\`。
+
+          ### 🔧 靜態分析結果
+          請參考下方 .NET 建置輸出以確認程式碼品質。"
+          fi
+
+          echo "$REVIEW_CONTENT" > /tmp/review_report.md
+          echo "review_done=true" >> $GITHUB_OUTPUT
+          echo "✅ AI 程式碼審查完成"
+
+      # ── 5. 將審查結果寫入 Commit ───────────────────────────────────
+      - name: 📝 建立審查報告並 Commit
+        if: steps.ai-review.outputs.review_done == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_SHA_SHORT="${{ github.sha }}"
+          COMMIT_SHA_SHORT="${COMMIT_SHA_SHORT:0:7}"
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
+          BRANCH="${{ github.ref_name }}"
+          AUTHOR=$(git log -1 --pretty=%an)
+          COMMIT_MSG=$(git log -1 --pretty=%B | head -1)
+
+          REPORT_DIR=".github/review-reports"
+          mkdir -p "$REPORT_DIR"
+          REPORT_FILE="$REPORT_DIR/code-review-${COMMIT_SHA_SHORT}.md"
+
+          {
+            echo "# 🔍 AI 程式碼審查報告"
+            echo ""
+            echo "| 項目 | 內容 |"
+            echo "|------|------|"
+            echo "| **Commit** | \`${COMMIT_SHA_SHORT}\` |"
+            echo "| **分支** | \`${BRANCH}\` |"
+            echo "| **作者** | ${AUTHOR} |"
+            echo "| **原始訊息** | ${COMMIT_MSG} |"
+            echo "| **審查時間** | ${TIMESTAMP} |"
+            echo "| **審查工具** | GitHub Actions + GPT-4o |"
+            echo ""
+            echo "---"
+            echo ""
+            cat /tmp/review_report.md
+          } > "$REPORT_FILE"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$REPORT_FILE"
+
+          if ! git diff --staged --quiet; then
+            git commit -m "🔍 [AI審查] Commit ${COMMIT_SHA_SHORT} 程式碼審查報告
+
+          📌 原始 Commit: ${COMMIT_SHA_SHORT}
+          👤 作者: ${AUTHOR}
+          🌿 分支: ${BRANCH}
+          ⏰ 時間: ${TIMESTAMP}
+
+          本報告由 GitHub Actions AI 程式碼審查 Workflow 自動產生，
+          使用 GPT-4o 對本次 push 的程式碼變更進行分析。
+
+          詳細報告請見: ${REPORT_FILE}"
+
+            git push origin HEAD:${BRANCH}
+            echo "✅ 審查報告已 commit 至分支 ${BRANCH}"
+          else
+            echo "⚠️ 無新報告需要 commit"
+          fi
+
+      # ── 6. .NET 建置驗證（靜態分析）──────────────────────────────
+      - name: 🔧 .NET 建置驗證（靜態分析）
+        if: steps.get-diff.outputs.skip != 'true'
+        run: |
+          echo "▶️ 執行 .NET 建置與靜態分析..."
+          dotnet build VMTO.sln --no-incremental -warnaserror 2>&1 | tee /tmp/build-output.txt || true
+          echo "✅ 建置分析完成"
+        continue-on-error: true
+
+      # ── 7. 輸出摘要至 GitHub Step Summary ────────────────────────
+      - name: 📊 輸出審查摘要
+        if: always()
+        run: |
+          echo "## 🔍 AI 程式碼審查摘要" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 項目 | 狀態 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 分支 | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 觸發者 | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 審查時間 | $(date -u '+%Y-%m-%d %H:%M UTC') |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/review_report.md ]; then
+            echo "### 審查結果" >> $GITHUB_STEP_SUMMARY
+            cat /tmp/review_report.md >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f /tmp/build-output.txt ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔧 建置輸出（摘要）" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -30 /tmp/build-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
