@@ -108,3 +108,24 @@ State transitions are enforced in the `MigrationJob` aggregate with invariant ch
 - `infra/.env.example` — all configurable values
 - `helm/` — Kubernetes deployment with dev/prod value files
 - Audit logs are append-only (no update/delete)
+
+## CI/CD Workflows
+
+### code-review.yml（PR 程式碼審查）
+- 觸發條件：PR 提交至 `main` 或 `develop`
+- 步驟：`dotnet build` → `dotnet test` → `dotnet format --verify-no-changes` → 前端 `npm run type-check`
+- 自動修正格式問題並提交
+- 產出 PR comment 摘要報告（繁體中文）
+
+### codeql-security.yml（CodeQL 安全掃描）
+- 觸發條件：PR 提交至 `main`、`develop`；每日排程掃描
+- 語言矩陣：C#、TypeScript + Vue
+- SARIF 解析並產出安全報告 PR comment
+- 自動標記安全標籤
+
+## Database
+
+- EF Core + PostgreSQL（snake_case table names）
+- 初始遷移已建立：`src/VMTO.Infrastructure/Migrations/`
+- 執行遷移：`dotnet ef database update --project src/VMTO.Infrastructure --startup-project src/VMTO.API`
+- 新增遷移：`dotnet ef migrations add <Name> --project src/VMTO.Infrastructure --startup-project src/VMTO.API`
