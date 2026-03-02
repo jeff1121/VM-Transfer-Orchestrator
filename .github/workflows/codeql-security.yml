@@ -1,0 +1,263 @@
+# ==============================================================================
+# VMTO — CodeQL 安全掃描工作流程
+# 使用 GitHub CodeQL 進行靜態安全分析，產生摘要報告
+# ==============================================================================
+name: "🛡️ CodeQL 安全掃描"
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  schedule:
+    # 每週一 UTC 08:00（台灣時間 16:00）執行排程掃描
+    - cron: "0 8 * * 1"
+
+permissions:
+  contents: write
+  security-events: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  codeql-analysis:
+    name: "CodeQL 安全掃描（${{ matrix.language }}）"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [csharp, javascript-typescript]
+        include:
+          - language: csharp
+            display_name: "C#"
+            build_command: "dotnet build VMTO.sln --no-restore"
+          - language: javascript-typescript
+            display_name: "TypeScript/Vue"
+            build_command: ""
+
+    steps:
+      - name: 簽出程式碼
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 設定 .NET SDK
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+          dotnet-quality: "preview"
+
+      - name: 還原 .NET 相依套件
+        if: matrix.language == 'csharp'
+        run: dotnet restore VMTO.sln
+
+      - name: 設定 Node.js
+        if: matrix.language == 'javascript-typescript'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 安裝前端相依套件
+        if: matrix.language == 'javascript-typescript'
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: 初始化 CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+          config: |
+            paths-ignore:
+              - '**/obj/**'
+              - '**/bin/**'
+              - '**/node_modules/**'
+              - '**/dist/**'
+
+      - name: 自動建置（CodeQL）
+        if: matrix.build_command != ''
+        run: ${{ matrix.build_command }}
+
+      - name: 自動建置（JavaScript/TypeScript）
+        if: matrix.language == 'javascript-typescript'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: 執行 CodeQL 分析
+        id: codeql_analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          output: codeql-results
+          upload: always
+
+      - name: 解析 SARIF 結果
+        id: parse_sarif
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const glob = require('glob');
+            const path = require('path');
+
+            // 搜尋 SARIF 檔案
+            const sarifDir = 'codeql-results';
+            let findings = { error: [], warning: [], note: [] };
+            let totalCount = 0;
+
+            try {
+              const files = fs.readdirSync(sarifDir).filter(f => f.endsWith('.sarif'));
+              for (const file of files) {
+                const sarif = JSON.parse(fs.readFileSync(path.join(sarifDir, file), 'utf8'));
+                for (const run of sarif.runs || []) {
+                  for (const result of run.results || []) {
+                    const level = result.level || 'warning';
+                    const msg = result.message?.text || '無描述';
+                    const ruleId = result.ruleId || '未知規則';
+                    const loc = result.locations?.[0]?.physicalLocation;
+                    const filePath = loc?.artifactLocation?.uri || '未知檔案';
+                    const line = loc?.region?.startLine || '?';
+
+                    const entry = `- \`${ruleId}\` — ${msg}\n  📄 \`${filePath}:${line}\``;
+
+                    if (level === 'error') findings.error.push(entry);
+                    else if (level === 'warning') findings.warning.push(entry);
+                    else findings.note.push(entry);
+                    totalCount++;
+                  }
+                }
+              }
+            } catch (e) {
+              core.warning(`SARIF 解析錯誤: ${e.message}`);
+            }
+
+            core.setOutput('total', String(totalCount));
+            core.setOutput('errors', String(findings.error.length));
+            core.setOutput('warnings', String(findings.warning.length));
+            core.setOutput('notes', String(findings.note.length));
+
+            // 儲存詳細結果供後續步驟使用
+            const details = JSON.stringify(findings);
+            fs.writeFileSync('codeql-findings.json', details);
+
+      - name: 上傳掃描結果
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-results-${{ matrix.language }}
+          path: |
+            codeql-results/
+            codeql-findings.json
+          retention-days: 30
+
+  # ============================================================================
+  # 彙整報告
+  # ============================================================================
+  security-report:
+    name: "安全掃描報告"
+    needs: codeql-analysis
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下載所有掃描結果
+        uses: actions/download-artifact@v4
+        with:
+          pattern: codeql-results-*
+          merge-multiple: true
+          path: all-results
+
+      - name: 產生安全掃描報告
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            let allFindings = { error: [], warning: [], note: [] };
+
+            // 合併所有結果
+            const resultsDir = 'all-results';
+            try {
+              const walk = (dir) => {
+                for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                  const fullPath = path.join(dir, entry.name);
+                  if (entry.isDirectory()) walk(fullPath);
+                  else if (entry.name === 'codeql-findings.json') {
+                    const data = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+                    allFindings.error.push(...(data.error || []));
+                    allFindings.warning.push(...(data.warning || []));
+                    allFindings.note.push(...(data.note || []));
+                  }
+                }
+              };
+              if (fs.existsSync(resultsDir)) walk(resultsDir);
+            } catch (e) {
+              core.warning(`結果合併錯誤: ${e.message}`);
+            }
+
+            const totalErrors = allFindings.error.length;
+            const totalWarnings = allFindings.warning.length;
+            const totalNotes = allFindings.note.length;
+            const totalAll = totalErrors + totalWarnings + totalNotes;
+            const hasIssues = totalErrors > 0 || totalWarnings > 0;
+            const icon = totalErrors > 0 ? '🔴' : totalWarnings > 0 ? '🟡' : '🟢';
+
+            let body = `## 🛡️ CodeQL 安全掃描報告\n\n`;
+            body += `| 嚴重程度 | 數量 |\n|----------|------|\n`;
+            body += `| 🔴 錯誤 (Error) | ${totalErrors} |\n`;
+            body += `| 🟡 警告 (Warning) | ${totalWarnings} |\n`;
+            body += `| 🔵 提示 (Note) | ${totalNotes} |\n`;
+            body += `| **合計** | **${totalAll}** |\n\n`;
+
+            if (totalErrors > 0) {
+              body += `### 🔴 嚴重問題（必須修復）\n\n`;
+              body += allFindings.error.slice(0, 20).join('\n') + '\n\n';
+              if (totalErrors > 20) body += `> ⚠️ 僅顯示前 20 項，共 ${totalErrors} 項\n\n`;
+            }
+
+            if (totalWarnings > 0) {
+              body += `### 🟡 警告（建議修復）\n\n`;
+              body += allFindings.warning.slice(0, 20).join('\n') + '\n\n';
+              if (totalWarnings > 20) body += `> ⚠️ 僅顯示前 20 項，共 ${totalWarnings} 項\n\n`;
+            }
+
+            if (totalNotes > 0 && totalAll <= 30) {
+              body += `### 🔵 提示\n\n`;
+              body += allFindings.note.slice(0, 10).join('\n') + '\n\n';
+            }
+
+            if (totalAll === 0) {
+              body += `### ${icon} 掃描結果\n\n✅ **未發現安全問題！** 程式碼通過 CodeQL 安全掃描。\n\n`;
+            }
+
+            body += `---\n`;
+            body += `> 📋 完整 SARIF 報告請至 **Security** → **Code scanning alerts** 頁面查看\n`;
+            body += `> *由 GitHub Actions 自動產生 · \`${{ github.workflow }}\`*`;
+
+            // 更新或建立 PR 評論
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('CodeQL 安全掃描報告')
+            );
+
+            const commentBody = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body,
+            };
+
+            if (botComment) {
+              await github.rest.issues.updateComment({ ...commentBody, comment_id: botComment.id });
+            } else {
+              await github.rest.issues.createComment({ ...commentBody, issue_number: context.issue.number });
+            }
+
+            if (totalErrors > 0) {
+              core.setFailed(`發現 ${totalErrors} 個嚴重安全問題`);
+            }

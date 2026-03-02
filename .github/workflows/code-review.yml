@@ -1,0 +1,192 @@
+# ==============================================================================
+# VMTO — Copilot Code Review 工作流程
+# 由 GitHub Copilot 進行 PR 程式碼審查，自動修復問題並產生報告
+# ==============================================================================
+name: "🔍 Copilot Code Review"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  code-review:
+    name: "程式碼審查與自動修復"
+    runs-on: ubuntu-latest
+    steps:
+      - name: 簽出程式碼
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 設定 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+          dotnet-quality: "preview"
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 還原 .NET 相依套件
+        run: dotnet restore VMTO.sln
+
+      - name: 編譯解決方案
+        id: build
+        continue-on-error: true
+        run: |
+          dotnet build VMTO.sln --no-restore -warnaserror 2>&1 | tee build-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: 執行測試
+        id: test
+        continue-on-error: true
+        run: |
+          dotnet test VMTO.sln --no-build --verbosity normal \
+            --logger "trx;LogFileName=test-results.trx" \
+            --collect:"XPlat Code Coverage" 2>&1 | tee test-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: 前端型別檢查
+        id: frontend_check
+        continue-on-error: true
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          npx vue-tsc --noEmit 2>&1 | tee ../frontend-check-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: .NET 格式檢查
+        id: format_check
+        continue-on-error: true
+        run: |
+          dotnet format VMTO.sln --verify-no-changes --verbosity diagnostic 2>&1 | tee format-output.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: 取得 PR 差異
+        id: diff
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD -- '*.cs' '*.ts' '*.vue' '*.csproj' > pr-diff.txt
+          echo "diff_lines=$(wc -l < pr-diff.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+
+      - name: 產生審查報告
+        id: report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const readFile = (path) => {
+              try { return fs.readFileSync(path, 'utf8'); } catch { return '（無輸出）'; }
+            };
+
+            const buildOutput = readFile('build-output.txt');
+            const testOutput = readFile('test-output.txt');
+            const frontendOutput = readFile('frontend-check-output.txt');
+            const formatOutput = readFile('format-output.txt');
+
+            const buildOk = '${{ steps.build.outputs.exit_code }}' === '0';
+            const testOk = '${{ steps.test.outputs.exit_code }}' === '0';
+            const frontendOk = '${{ steps.frontend_check.outputs.exit_code }}' === '0';
+            const formatOk = '${{ steps.format_check.outputs.exit_code }}' === '0';
+
+            const allPassed = buildOk && testOk && frontendOk && formatOk;
+            const statusIcon = allPassed ? '✅' : '⚠️';
+
+            // 擷取錯誤摘要（最多 50 行）
+            const extractErrors = (output, keyword) => {
+              return output.split('\n')
+                .filter(l => l.toLowerCase().includes(keyword))
+                .slice(0, 50)
+                .join('\n');
+            };
+
+            const buildErrors = buildOk ? '' : extractErrors(buildOutput, 'error');
+            const testFailures = testOk ? '' : extractErrors(testOutput, 'failed');
+            const frontendErrors = frontendOk ? '' : extractErrors(frontendOutput, 'error');
+
+            let body = `## ${statusIcon} 程式碼審查報告\n\n`;
+            body += `| 檢查項目 | 狀態 |\n|----------|------|\n`;
+            body += `| 🔨 編譯 | ${buildOk ? '✅ 通過' : '❌ 失敗'} |\n`;
+            body += `| 🧪 測試 | ${testOk ? '✅ 通過' : '❌ 失敗'} |\n`;
+            body += `| 📐 格式 | ${formatOk ? '✅ 通過' : '⚠️ 需要修正'} |\n`;
+            body += `| 🖥️ 前端型別檢查 | ${frontendOk ? '✅ 通過' : '❌ 失敗'} |\n\n`;
+
+            if (!buildOk && buildErrors) {
+              body += `### ❌ 編譯錯誤\n\`\`\`\n${buildErrors}\n\`\`\`\n\n`;
+            }
+            if (!testOk && testFailures) {
+              body += `### ❌ 測試失敗\n\`\`\`\n${testFailures}\n\`\`\`\n\n`;
+            }
+            if (!frontendOk && frontendErrors) {
+              body += `### ❌ 前端錯誤\n\`\`\`\n${frontendErrors}\n\`\`\`\n\n`;
+            }
+
+            body += `---\n*由 GitHub Actions 自動產生 · \`${{ github.workflow }}\`*`;
+
+            // 發表 PR 評論
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('程式碼審查報告')
+            );
+
+            const commentBody = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body,
+            };
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                ...commentBody,
+                comment_id: botComment.id,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...commentBody,
+                issue_number: context.issue.number,
+              });
+            }
+
+            // 若格式有問題，自動修正
+            if (!formatOk) {
+              core.setOutput('needs_format_fix', 'true');
+            } else {
+              core.setOutput('needs_format_fix', 'false');
+            }
+
+            if (!allPassed) {
+              core.setFailed('程式碼審查發現問題，請檢視報告');
+            }
+
+      - name: 自動修正格式問題
+        if: steps.report.outputs.needs_format_fix == 'true'
+        run: |
+          dotnet format VMTO.sln
+          if git diff --quiet; then
+            echo "格式修正後無變更"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "style: 自動修正程式碼格式
+
+          由 CI 工作流程自動執行 dotnet format 修正格式問題。
+
+          Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+            git push
+            echo "✅ 已自動修正格式並推送"
+          fi
