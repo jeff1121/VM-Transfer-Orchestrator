@@ -288,32 +288,32 @@
 
 ---
 
-## Phase 11: 長期產品化進化 ⏳
+## Phase 11: 長期產品化進化 ✅
 
-- [ ] **L1** — Webhook / Event 通知 *(depends on: M2)*
-  - 定義 `IWebhookService` 介面
-  - 支援 Slack、Teams、Email、自訂 HTTP webhook
-  - Job 完成/失敗時觸發
-  - 設定頁面管理 webhook endpoints
+- [x] **L1** — Webhook / Event 通知 *(depends on: M2)* ✅
+  - ✅ 定義 `IWebhookService` 介面 + `WebhookService` 實作（Http/Slack/Teams/Email）
+  - ✅ `WebhookSubscription` 實體 + EF Core 設定
+  - ✅ Webhook CRUD API（`/api/webhooks`，Admin 專用）+ HMAC-SHA256 簽章
+  - ✅ 前端 `WebhooksView.vue` 管理頁面
 
-- [ ] **L2** — Dashboard 圖表 *(depends on: M1)*
-  - 整合 ECharts 或 Chart.js
-  - 遷移統計（成功/失敗/進行中）
-  - 趨勢圖（每日/每週遷移量）
-  - 傳輸量統計
+- [x] **L2** — Dashboard 圖表 *(depends on: M1)* ✅
+  - ✅ 整合 ECharts + vue-echarts 圖表庫
+  - ✅ `DashboardEndpoints`（`/api/dashboard/stats`）：狀態統計、每日趨勢、平均耗時
+  - ✅ 狀態分布圓餅圖 + 每日遷移趨勢折線圖
+  - ✅ 統計摘要卡片（總任務數、平均耗時、總傳輸量）
 
-- [ ] **L3** — Native AOT 編譯 *(depends on: M1)*
-  - 評估 .NET 10 AOT 相容性
-  - 處理 reflection-heavy 套件（EF Core, MassTransit）的 AOT trimming
-  - Dockerfile 加入 AOT build variant
+- [x] **L3** — Native AOT 編譯 *(depends on: M1)* ✅
+  - ✅ ADR-005 評估文件：各元件 AOT 相容性分析
+  - ✅ Shared/Domain 層加入 `IsTrimmable` + `IsAotCompatible` 標記
+  - ✅ 結論：EF Core/MassTransit 暫不支援 AOT，保持 JIT 模式
 
-- [ ] **L4** — i18n 國際化 *(depends on: M5)*
-  - 前端整合 `vue-i18n`
-  - 抽取所有 hardcoded 繁體中文字串
-  - 支援 en-US, zh-TW, zh-CN
-  - API 錯誤訊息多語系
+- [x] **L4** — i18n 國際化 *(depends on: M5)* ✅
+  - ✅ 整合 `vue-i18n`，支援 zh-TW（預設）、en-US、zh-CN
+  - ✅ 三個完整語系檔 + 所有 View 元件抽取字串
+  - ✅ SettingsView 語言切換下拉 + localStorage 持久化
+  - ✅ ECharts 圖表標題/圖例即時語言切換
 
-- [ ] **L5** — Audit Dashboard *(depends on: M2)*
-  - 新增 AuditLog 查詢 API（分頁、篩選）
-  - 前端 Audit Log 頁面（表格、搜尋、匯出）
-  - 時間軸視覺化
+- [x] **L5** — Audit Dashboard *(depends on: M2)* ✅
+  - ✅ `AuditEndpoints`（`/api/audit`）：分頁查詢、CSV 匯出（UTF-8 BOM）、統計摘要
+  - ✅ 前端 `AuditView.vue`：篩選列、表格、分頁、時間軸視覺化
+  - ✅ Pinia audit store + API client
