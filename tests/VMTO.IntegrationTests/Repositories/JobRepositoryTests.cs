@@ -14,6 +14,7 @@ namespace VMTO.IntegrationTests.Repositories;
 /// JobRepository 整合測試，使用真實 PostgreSQL 容器驗證儲存庫操作。
 /// </summary>
 [Collection("Database")]
+[Trait("Category", "Integration")]
 public sealed class JobRepositoryTests(PostgreSqlFixture fixture)
 {
     private AppDbContext CreateContext() =>

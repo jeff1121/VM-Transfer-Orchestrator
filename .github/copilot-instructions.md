@@ -9,8 +9,8 @@ Use Traditional Chinese (繁體中文) for all user-facing documentation, commen
 # Build
 dotnet build VMTO.sln
 
-# Test all
-dotnet test VMTO.sln
+# Test all (excluding integration tests that need Docker)
+dotnet test VMTO.sln --filter "Category!=Integration"
 
 # Test a single project
 dotnet test tests/VMTO.Domain.Tests
