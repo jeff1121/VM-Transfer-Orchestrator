@@ -8,7 +8,7 @@ public static class ArtifactEndpoints
 {
     public static void MapArtifactEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/artifacts").WithTags("Artifacts");
+        var group = app.MapGroup("/api/artifacts").WithTags("Artifacts").RequireAuthorization();
 
         group.MapGet("/", ListArtifacts);
     }

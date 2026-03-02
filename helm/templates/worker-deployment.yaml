@@ -27,6 +27,13 @@ spec:
         - name: worker
           image: {{ include "vmto.image" (dict "global" .Values.global "image" .Values.worker.image "root" .) }}
           imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           envFrom:
             - configMapRef:
                 name: {{ include "vmto.fullname" . }}-config

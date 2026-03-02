@@ -9,7 +9,7 @@ public static class JobEndpoints
 {
     public static void MapJobEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/jobs").WithTags("Jobs");
+        var group = app.MapGroup("/api/jobs").WithTags("Jobs").RequireAuthorization();
 
         group.MapGet("/", ListJobs);
         group.MapGet("/{id:guid}", GetJob);
@@ -28,6 +28,7 @@ public static class JobEndpoints
         JobStatus? status = null,
         CancellationToken ct = default)
     {
+        pageSize = Math.Min(pageSize, 100);
         var jobs = await repo.ListAsync(page, pageSize, status, ct);
         var total = await repo.CountAsync(status, ct);
         return Results.Ok(new { items = jobs.Select(MapToDto), total, page, pageSize });

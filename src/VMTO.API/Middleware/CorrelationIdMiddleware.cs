@@ -8,8 +8,10 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId = context.Request.Headers[HeaderName].FirstOrDefault()
-            ?? Guid.NewGuid().ToString("D");
+        var headerValue = context.Request.Headers[HeaderName].FirstOrDefault();
+        var correlationId = (headerValue is not null && IsValidCorrelationId(headerValue))
+            ? headerValue
+            : Guid.NewGuid().ToString("D");
 
         context.Items["CorrelationId"] = correlationId;
         context.Response.OnStarting(() =>
@@ -23,4 +25,9 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next)
             await next(context);
         }
     }
+
+    private static bool IsValidCorrelationId(string value) =>
+        !string.IsNullOrEmpty(value) &&
+        value.Length <= 64 &&
+        value.All(c => char.IsAsciiLetterOrDigit(c) || c == '-' || c == '_');
 }
