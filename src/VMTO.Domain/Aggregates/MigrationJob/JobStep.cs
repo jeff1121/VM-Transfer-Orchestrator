@@ -1,10 +1,13 @@
 using VMTO.Domain.Enums;
+using VMTO.Domain.Events;
 using VMTO.Shared;
 
 namespace VMTO.Domain.Aggregates.MigrationJob;
 
 public sealed class JobStep
 {
+    private readonly List<IDomainEvent> _domainEvents = [];
+
     public Guid Id { get; private set; }
     public Guid JobId { get; private set; }
     public string Name { get; private set; }
@@ -18,6 +21,8 @@ public sealed class JobStep
     public DateTime? StartedAt { get; private set; }
     public DateTime? CompletedAt { get; private set; }
 
+    public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+
     public JobStep(Guid jobId, string name, int order, int maxRetries)
     {
         Id = Guid.NewGuid();
@@ -30,6 +35,8 @@ public sealed class JobStep
 
     // EF Core / serialization
     private JobStep() { Name = string.Empty; }
+
+    public void ClearDomainEvents() => _domainEvents.Clear();
 
     public Result Start()
     {
@@ -51,6 +58,7 @@ public sealed class JobStep
         Status = StepStatus.Succeeded;
         Progress = 100;
         CompletedAt = DateTime.UtcNow;
+        _domainEvents.Add(new StepCompletedEvent(JobId, Id, Name));
         return Result.Success();
     }
 
@@ -63,6 +71,7 @@ public sealed class JobStep
         ErrorMessage = error;
         Status = StepStatus.Failed;
         CompletedAt = DateTime.UtcNow;
+        _domainEvents.Add(new StepFailedEvent(JobId, Id, Name, error));
         return Result.Success();
     }
 
@@ -88,6 +97,7 @@ public sealed class JobStep
                 $"Step '{Name}' has exceeded max retries ({MaxRetries}).");
 
         RetryCount++;
+        Progress = 0;
         Status = StepStatus.Retrying;
         ErrorMessage = null;
         CompletedAt = null;
@@ -101,6 +111,16 @@ public sealed class JobStep
                 $"Cannot update progress for step '{Name}' in status {Status}.");
 
         Progress = Math.Clamp(percent, 0, 100);
+        return Result.Success();
+    }
+
+    public Result SetLogsUri(string uri)
+    {
+        if (Status is not StepStatus.Running and not StepStatus.Succeeded)
+            return Result.Failure(ErrorCodes.Job.InvalidTransition,
+                $"Cannot set logs URI for step '{Name}' in status {Status}.");
+
+        LogsUri = uri;
         return Result.Success();
     }
 }

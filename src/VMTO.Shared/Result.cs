@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace VMTO.Shared;
 
 public sealed class Result
@@ -20,6 +22,8 @@ public sealed class Result
 public sealed class Result<T>
 {
     public bool IsSuccess { get; }
+
+    [MemberNotNullWhen(true, nameof(IsSuccess))]
     public T? Value { get; }
     public string? ErrorCode { get; }
     public string? ErrorMessage { get; }
