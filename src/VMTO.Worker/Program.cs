@@ -1,6 +1,7 @@
 using Hangfire;
 using Hangfire.PostgreSql;
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
 using VMTO.Infrastructure;
 using VMTO.Worker;
 using VMTO.Worker.Consumers;
@@ -10,6 +11,9 @@ var builder = Host.CreateApplicationBuilder(args);
 
 // Infrastructure (EF, Redis, clients, crypto, telemetry)
 builder.Services.AddInfrastructure(builder.Configuration);
+
+var pgConnStr = builder.Configuration.GetConnectionString("PostgreSQL")
+    ?? throw new InvalidOperationException("PostgreSQL connection string is required.");
 
 // MassTransit + RabbitMQ with consumers and saga
 builder.Services.AddMassTransit(x =>
@@ -21,7 +25,12 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<VerifyConsumer>();
 
     x.AddSagaStateMachine<MigrationJobSaga, MigrationJobSagaState>()
-     .InMemoryRepository();
+     .EntityFrameworkRepository(r =>
+     {
+         r.ConcurrencyMode = ConcurrencyMode.Optimistic;
+         r.AddDbContext<DbContext, MigrationSagaDbContext>((provider, options) =>
+             options.UseNpgsql(pgConnStr));
+     });
 
     x.UsingRabbitMq((context, cfg) =>
     {

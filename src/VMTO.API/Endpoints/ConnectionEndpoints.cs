@@ -9,7 +9,7 @@ public static class ConnectionEndpoints
 {
     public static void MapConnectionEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/connections").WithTags("Connections");
+        var group = app.MapGroup("/api/connections").WithTags("Connections").RequireAuthorization();
 
         group.MapGet("/", ListConnections);
         group.MapGet("/{id:guid}", GetConnection);
@@ -24,6 +24,7 @@ public static class ConnectionEndpoints
         int pageSize = 20,
         CancellationToken ct = default)
     {
+        pageSize = Math.Min(pageSize, 100);
         var connections = await repo.ListAsync(page, pageSize, ct);
         var total = await repo.CountAsync(ct);
         return Results.Ok(new { items = connections.Select(MapToDto), total, page, pageSize });
@@ -60,10 +61,12 @@ public static class ConnectionEndpoints
         return Results.Ok(MapToDto(connection));
     }
 
-    private static async Task<IResult> DeleteConnection(Guid id, IConnectionRepository repo, CancellationToken ct)
+    private static async Task<IResult> DeleteConnection(Guid id, IConnectionRepository repo, IJobRepository jobRepo, CancellationToken ct)
     {
         var connection = await repo.GetByIdAsync(id, ct);
         if (connection is null) return Results.NotFound();
+        if (await jobRepo.HasActiveJobsForConnectionAsync(id, ct))
+            return Results.Conflict(new { error = "Cannot delete connection: there are active jobs using this connection." });
         await repo.DeleteAsync(id, ct);
         return Results.NoContent();
     }

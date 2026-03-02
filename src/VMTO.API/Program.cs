@@ -1,6 +1,10 @@
+using System.Text;
 using Hangfire;
+using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
 using MassTransit;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using VMTO.API.Endpoints;
 using VMTO.API.Middleware;
 using VMTO.Infrastructure;
@@ -49,9 +53,50 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:5173"])
               .AllowAnyHeader()
-              .AllowAnyMethod()
+              .WithMethods("GET", "POST", "PUT", "DELETE")
               .AllowCredentials();
     });
+});
+
+// JWT Authentication
+var jwtKey = builder.Configuration["Jwt:SecretKey"];
+if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
+    throw new InvalidOperationException("Jwt:SecretKey is required and must be at least 32 characters.");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "VMTO";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "VMTO";
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+        // Allow JWT from SignalR query string
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = ctx =>
+            {
+                var accessToken = ctx.Request.Query["access_token"];
+                var path = ctx.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                    ctx.Token = accessToken;
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Operator", policy => policy.RequireRole("Admin", "Operator"));
+    options.AddPolicy("Viewer", policy => policy.RequireRole("Admin", "Operator", "Viewer"));
 });
 
 // ProblemDetails + exception handler
@@ -65,6 +110,8 @@ app.UseResponseCompression();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseExceptionHandler();
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
@@ -72,7 +119,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Map endpoints
+// Map endpoints (all require authentication)
 app.MapJobEndpoints();
 app.MapConnectionEndpoints();
 app.MapArtifactEndpoints();
@@ -81,13 +128,13 @@ app.MapLicenseEndpoints();
 // SignalR hub
 app.MapHub<MigrationHub>("/hubs/migration");
 
-// Health checks
+// Health checks (public)
 app.MapHealthChecks("/health");
 
-// Hangfire dashboard (dev only)
-if (app.Environment.IsDevelopment())
+// Hangfire dashboard — restricted to local requests only
+app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {
-    app.MapHangfireDashboard("/hangfire");
-}
+    Authorization = [new LocalRequestsOnlyDashboardAuthorizationFilter()]
+});
 
 app.Run();

@@ -7,7 +7,7 @@ public static class LicenseEndpoints
 {
     public static void MapLicenseEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/license").WithTags("License");
+        var group = app.MapGroup("/api/license").WithTags("License").RequireAuthorization();
 
         group.MapGet("/", GetLicense);
         group.MapPost("/activate", ActivateLicense);

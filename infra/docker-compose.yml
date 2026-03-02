@@ -14,7 +14,10 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-redis_dev_pass}"]
     ports: ["6379:6379"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-redis_dev_pass}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -52,13 +55,16 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
-      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-redis_dev_pass}
       - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-vmto}:${RABBITMQ_PASS:-vmto_dev_pass}@rabbitmq:5672
       - Storage__S3__Endpoint=http://minio:9000
       - Storage__S3__AccessKey=${MINIO_ROOT_USER:-vmto}
       - Storage__S3__SecretKey=${MINIO_ROOT_PASSWORD:-vmto_dev_pass}
       - Storage__S3__Bucket=${MINIO_BUCKET:-vmto-artifacts}
       - MockMode=${MOCK_MODE:-true}
+      - Jwt__SecretKey=${Jwt__SecretKey}
+      - Jwt__Issuer=${Jwt__Issuer:-VMTO}
+      - Jwt__Audience=${Jwt__Audience:-VMTO}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -71,7 +77,7 @@ services:
       dockerfile: infra/dockerfiles/Dockerfile.worker
     environment:
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
-      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-redis_dev_pass}
       - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-vmto}:${RABBITMQ_PASS:-vmto_dev_pass}@rabbitmq:5672
       - Storage__S3__Endpoint=http://minio:9000
       - Storage__S3__AccessKey=${MINIO_ROOT_USER:-vmto}

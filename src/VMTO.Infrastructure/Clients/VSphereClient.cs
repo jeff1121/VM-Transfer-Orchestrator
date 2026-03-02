@@ -34,7 +34,9 @@ public sealed class VSphereClient : IVSphereClient
     {
         try
         {
-            var response = await _http.GetAsync($"/api/vcenter/vm/{vmId}/disk/{diskKey}/export", ct);
+            var encodedVmId = Uri.EscapeDataString(vmId);
+            var encodedDiskKey = Uri.EscapeDataString(diskKey);
+            var response = await _http.GetAsync($"/api/vcenter/vm/{encodedVmId}/disk/{encodedDiskKey}/export", ct);
             response.EnsureSuccessStatusCode();
 
             var stream = await response.Content.ReadAsStreamAsync(ct);
@@ -51,7 +53,8 @@ public sealed class VSphereClient : IVSphereClient
     {
         try
         {
-            var response = await _http.GetAsync($"/api/vcenter/vm/{vmId}", ct);
+            var encodedVmId = Uri.EscapeDataString(vmId);
+            var response = await _http.GetAsync($"/api/vcenter/vm/{encodedVmId}", ct);
             response.EnsureSuccessStatusCode();
 
             // Placeholder: parse CBT status from response
@@ -68,7 +71,8 @@ public sealed class VSphereClient : IVSphereClient
     {
         try
         {
-            var response = await _http.PostAsync($"/api/vcenter/vm/{vmId}/cbt/enable", null, ct);
+            var encodedVmId = Uri.EscapeDataString(vmId);
+            var response = await _http.PostAsync($"/api/vcenter/vm/{encodedVmId}/cbt/enable", null, ct);
             response.EnsureSuccessStatusCode();
 
             return Result.Success();

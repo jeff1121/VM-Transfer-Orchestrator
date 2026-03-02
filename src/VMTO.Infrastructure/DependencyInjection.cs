@@ -1,4 +1,5 @@
 using Amazon.S3;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,7 +21,7 @@ public static class DependencyInjection
     {
         // EF Core + PostgreSQL
         var connectionString = configuration.GetConnectionString("PostgreSQL")
-            ?? "Host=localhost;Database=vmto;Username=vmto;Password=vmto";
+            ?? throw new InvalidOperationException("PostgreSQL connection string is required.");
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
@@ -37,18 +38,23 @@ public static class DependencyInjection
         {
             services.AddSingleton<IAmazonS3>(sp =>
             {
-                var config = new AmazonS3Config { ServiceURL = s3Endpoint, ForcePathStyle = true };
-                return new AmazonS3Client(
-                    configuration["Storage:S3:AccessKey"] ?? string.Empty,
-                    configuration["Storage:S3:SecretKey"] ?? string.Empty,
-                    config);
+                var s3Config = new AmazonS3Config { ServiceURL = s3Endpoint, ForcePathStyle = true };
+                var accessKey = configuration["Storage:S3:AccessKey"]
+                    ?? throw new InvalidOperationException("Storage:S3:AccessKey is required when S3 endpoint is configured.");
+                var secretKey = configuration["Storage:S3:SecretKey"]
+                    ?? throw new InvalidOperationException("Storage:S3:SecretKey is required when S3 endpoint is configured.");
+                return new AmazonS3Client(accessKey, secretKey, s3Config);
             });
         }
 
         services.AddSingleton<StorageAdapterFactory>();
 
-        // Encryption
-        services.AddDataProtection();
+        // Encryption — 金鑰持久化至 FileSystem
+        // 生產環境必須透過 volume mount 確保 KeysPath 目錄持久化，否則容器重啟後將無法解密既有資料
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(
+                configuration["DataProtection:KeysPath"] ?? "/app/keys"))
+            .SetApplicationName("VMTO");
         services.AddSingleton<IEncryptionService, DataProtectionEncryptionService>();
 
         // Notifications (SignalR)

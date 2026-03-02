@@ -25,6 +25,13 @@ spec:
         - name: frontend
           image: {{ include "vmto.image" (dict "global" .Values.global "image" .Values.frontend.image "root" .) }}
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: http
               containerPort: {{ .Values.frontend.service.targetPort }}

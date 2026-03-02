@@ -16,7 +16,7 @@ public sealed class SignalRNotificationService : INotificationService
 
     public async Task SendJobProgressAsync(Guid jobId, int progress, JobStatus status, CancellationToken ct = default)
     {
-        await _hubContext.Clients.All.SendAsync(
+        await _hubContext.Clients.Group(jobId.ToString()).SendAsync(
             "JobProgress",
             new { jobId, progress, status = status.ToString() },
             ct);
@@ -24,7 +24,7 @@ public sealed class SignalRNotificationService : INotificationService
 
     public async Task SendStepProgressAsync(Guid jobId, Guid stepId, int progress, StepStatus status, CancellationToken ct = default)
     {
-        await _hubContext.Clients.All.SendAsync(
+        await _hubContext.Clients.Group(jobId.ToString()).SendAsync(
             "StepProgress",
             new { jobId, stepId, progress, status = status.ToString() },
             ct);
