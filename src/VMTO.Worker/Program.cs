@@ -17,7 +17,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 // EF Core DbContext for saga state persistence
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? builder.Configuration.GetConnectionString("PostgreSQL")
-    ?? "Host=localhost;Database=vmto;Username=vmto;Password=vmto";
+    ?? "Host=localhost;Database=vmto;Username=vmto;******";
 
 builder.Services.AddDbContext<MigrationSagaDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -32,14 +32,11 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<UploadArtifactConsumer>();
     x.AddConsumer<ImportToPveConsumer>();
     x.AddConsumer<VerifyConsumer>();
-<<<<<<< HEAD
     x.AddConsumer<EnableCbtConsumer>();
     x.AddConsumer<IncrementalPullConsumer>();
     x.AddConsumer<ApplyDeltaConsumer>();
     x.AddConsumer<FinalSyncCutoverConsumer>();
-=======
     x.AddConsumer<DlqConsumer>();
->>>>>>> origin/main
 
     x.AddSagaStateMachine<MigrationJobSaga, MigrationJobSagaState>()
      .EntityFrameworkRepository(r =>

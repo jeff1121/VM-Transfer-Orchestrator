@@ -21,11 +21,7 @@ public sealed class Result
 
 public sealed class Result<T>
 {
-<<<<<<< HEAD
     [MemberNotNullWhen(true, nameof(Value))]
-=======
-    [System.Diagnostics.CodeAnalysis.MemberNotNullWhen(true, nameof(Value))]
->>>>>>> origin/main
     public bool IsSuccess { get; }
 
     public T? Value { get; }
