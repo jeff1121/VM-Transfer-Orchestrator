@@ -55,6 +55,10 @@ public static class DependencyInjection
         services.AddSignalR();
         services.AddScoped<INotificationService, SignalRNotificationService>();
 
+        // Webhook 通知
+        services.AddHttpClient("Webhook", c => c.Timeout = TimeSpan.FromSeconds(10));
+        services.AddScoped<IWebhookService, WebhookService>();
+
         // Hypervisor clients
         var useMocks = configuration.GetValue<bool>("UseMockClients");
         if (useMocks)
