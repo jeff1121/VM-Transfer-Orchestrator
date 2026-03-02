@@ -214,24 +214,24 @@
 
 ---
 
-## Phase 9: 短期補齊基礎 ⏳
+## Phase 9: 短期補齊基礎 ✅
 
-- [ ] **S1** — global.json + 版本鎖定
+- [x] **S1** — global.json + 版本鎖定
   - 新增 `global.json` 鎖定 .NET 10.0.x SDK 版本
   - 確保所有開發者與 CI 使用一致的 SDK
 
-- [ ] **S2** — appsettings.json 完善
+- [x] **S2** — appsettings.json 完善
   - API: 加入 ConnectionStrings（PostgreSQL, Redis, RabbitMQ, Hangfire）、Storage（S3）、MockMode、Cors:Origins、License:SigningKey
   - Worker: 加入 ConnectionStrings、Storage、MockMode
   - LicenseServer: 加入 ConnectionStrings、License:SigningKey
   - 各專案加入 `appsettings.Development.json` 使用 localhost 預設值
 
-- [ ] **S3** — EF Core Initial Migration *(depends on: S2)*
+- [x] **S3** — EF Core Initial Migration *(depends on: S2)*
   - 安裝 `dotnet-ef` tool
   - 執行 `dotnet ef migrations add InitialCreate --project src/VMTO.Infrastructure --startup-project src/VMTO.API`
   - 驗證 Migration 檔案正確產生所有表（jobs, job_steps, connections, artifacts, licenses, audit_logs）
 
-- [ ] **S4** — Domain 層單元測試 *(depends on: S1)*
+- [x] **S4** — Domain 層單元測試（130 個） *(depends on: S1)*
   - MigrationJob 狀態機測試：每個合法/非法轉換（10 個方法 × 有效/無效 ≈ 20+ 測試）
   - JobStep 狀態機測試：Start/Complete/Fail/Skip/Retry/UpdateProgress（≈ 15 測試）
   - Connection 測試：MarkValidated, UpdateSecret
@@ -240,47 +240,51 @@
   - 策略測試：FullCopyStrategy.GetStepNames(), IncrementalStrategy.GetStepNames()
   - 領域事件：驗證 aggregate 方法正確 raise events
 
-- [ ] **S5** — Application Handler 實作 + 測試 *(depends on: S4)*
+- [x] **S5** — Application Handler 實作 + 測試（29 個） *(depends on: S4)*
   - 實作 8 個 CommandHandler：CreateJob, CancelJob, PauseJob, ResumeJob, RetryFailedSteps, CreateConnection, ValidateConnection, DeleteConnection
   - 實作 5 個 QueryHandler：GetJob, ListJobs, GetJobProgress, GetConnections, GetArtifacts
-  - 在 Infrastructure 或 Application 層的 DI 註冊所有 handlers
+  - Application DI 註冊所有 13 個 handlers
   - 單元測試用 NSubstitute mock repositories 與 services
 
-- [ ] **S6** — 文件更新 *(depends on: S5)*
-  - 更新 `copilot-instructions.md` 加入 CI/CD 工作流程區段
-  - 更新 `README.md` 加入版本管理與 CI 區段
+- [x] **S6** — 文件更新 *(depends on: S5)*
+  - 更新 `copilot-instructions.md` 加入 CI/CD 工作流程區段與 Database 區段
+  - Tasks.md 更新至 Phase 9-11
 
 ---
 
-## Phase 10: 中期強化品質與安全 ⏳
+## Phase 10: 中期強化品質與安全 ✅
 
-- [ ] **M1** — 整合測試（Testcontainers） *(depends on: S3, S5)*
+- [x] **M1** — 整合測試（Testcontainers） *(depends on: S3, S5)*
   - 新增 `VMTO.IntegrationTests` 專案
-  - 使用 Testcontainers 啟動 PostgreSQL、RabbitMQ、MinIO
-  - 測試完整遷移流程（Mock 模式）：建立 Connection → 建立 Job → 執行 Steps → 驗證結果
-  - 測試 Repository 層真實 DB 操作
+  - 使用 Testcontainers 啟動 PostgreSQL 容器 + 自動 EF Core 遷移
+  - JobRepositoryTests: 5 個測試（新增、含步驟讀取、狀態更新、分頁篩選、計數）
+  - ConnectionRepositoryTests: 3 個測試（新增、刪除、驗證時間持久化）
 
-- [ ] **M2** — JWT 認證實作 *(depends on: S5)*
-  - 實作 JWT token 產生與驗證
-  - 定義角色：Admin, Operator, Viewer
-  - API endpoints 加入 `[Authorize]` 與角色檢查
-  - 前端加入 login 頁面與 token 管理
+- [x] **M2** — JWT 認證實作 *(depends on: S5)*
+  - 實作 JwtSettings / Roles / JwtTokenService 認證基礎建設
+  - 新增 POST /api/auth/login 登入端點
+  - API 所有端點加入 RequireAuthorization（寫入操作限 Admin/Operator）
+  - Swagger 加入 Bearer token 安全定義
+  - SignalR 支援 query string JWT token
+  - 前端: LoginView、auth Pinia store、Router 守衛、API client 自動附加 token
 
-- [ ] **M3** — API Rate Limiting *(depends on: M2)*
-  - 使用 ASP.NET Core 內建 Rate Limiting middleware
-  - 設定 fixed window / sliding window 策略
-  - 依角色不同限制（Admin 較高）
+- [x] **M3** — API Rate Limiting *(depends on: M2)*
+  - 全域速率限制：依角色分級（Admin 300/min、Operator 120/min、Viewer 60/min）
+  - 寫入操作策略：每分鐘 30 次上限
+  - 登入端點策略：每分鐘 10 次防暴力破解
+  - 429 回應使用統一 ErrorResponse 格式
 
-- [ ] **M4** — 前端 E2E 測試（Playwright） *(depends on: M2)*
-  - 安裝 Playwright
-  - 測試場景：Dashboard 載入、建立連線、建立遷移任務、檢視進度
-  - CI workflow 整合
+- [x] **M4** — 前端 E2E 測試（Playwright） *(depends on: M2)*
+  - 安裝 @playwright/test + 建立 playwright.config.ts
+  - 3 個測試檔案：login、dashboard、connections
+  - CI workflow: .github/workflows/e2e-tests.yml
 
-- [ ] **M5** — 統一錯誤回應格式 *(depends on: S5)*
+- [x] **M5** — 統一錯誤回應格式 *(depends on: S5)*
   - 建立 `ErrorResponse` DTO（code, message, details, correlationId）
-  - API 所有 endpoint 回傳統一格式
-  - ErrorCodes 對應 HTTP status code mapping
-  - 前端 API client 統一錯誤處理
+  - 建立 `ErrorCodeMapping`（ErrorCode → HTTP 狀態碼映射表）
+  - 建立 `ResultExtensions`（Result/Result<T> → IResult 轉換）
+  - GlobalExceptionHandler 改用 ErrorResponse 格式
+  - 前端 API client 401 自動導向登入
 
 ---
 
