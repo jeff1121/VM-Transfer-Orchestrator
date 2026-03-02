@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -8,10 +11,12 @@ import { RouterView } from 'vue-router'
       <div class="logo">
         <h2>VMTO</h2>
       </div>
-      <RouterLink to="/" class="nav-link">儀表板</RouterLink>
-      <RouterLink to="/jobs/new" class="nav-link">新增遷移</RouterLink>
-      <RouterLink to="/connections" class="nav-link">連線管理</RouterLink>
-      <RouterLink to="/settings" class="nav-link">設定</RouterLink>
+      <RouterLink to="/" class="nav-link">{{ t('nav.dashboard') }}</RouterLink>
+      <RouterLink to="/jobs/new" class="nav-link">{{ t('nav.newJob') }}</RouterLink>
+      <RouterLink to="/connections" class="nav-link">{{ t('nav.connections') }}</RouterLink>
+      <RouterLink to="/settings" class="nav-link">{{ t('nav.settings') }}</RouterLink>
+      <RouterLink to="/webhooks" class="nav-link">🔔 {{ t('nav.webhooks') }}</RouterLink>
+      <RouterLink to="/audit" class="nav-link">📋 {{ t('nav.audit') }}</RouterLink>
     </nav>
     <main class="content">
       <RouterView />

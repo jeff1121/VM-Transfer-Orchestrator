@@ -1,9 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t, locale } = useI18n()
 const appVersion = __APP_VERSION__
 const licenseKey = ref('')
 const activating = ref(false)
 const activationResult = ref<string | null>(null)
+const currentLocale = ref(locale.value)
+
+// 切換語言並儲存至 localStorage
+const changeLocale = () => {
+  locale.value = currentLocale.value
+  localStorage.setItem('locale', currentLocale.value)
+}
 
 const activateLicense = async () => {
   activating.value = true
@@ -23,12 +33,24 @@ const activateLicense = async () => {
 
 <template>
   <div class="settings-page">
-    <h1>設定</h1>
+    <h1>{{ t('settings.title') }}</h1>
+
+    <section class="panel">
+      <h2>{{ t('settings.language') }}</h2>
+      <div class="setting-item">
+        <label>{{ t('settings.language') }}</label>
+        <select v-model="currentLocale" class="input" @change="changeLocale">
+          <option value="zh-TW">繁體中文</option>
+          <option value="en-US">English</option>
+          <option value="zh-CN">简体中文</option>
+        </select>
+      </div>
+    </section>
 
     <section class="panel">
       <h2>授權資訊</h2>
       <div class="info-row"><span class="label">產品</span><span>VM Transfer Orchestrator</span></div>
-      <div class="info-row"><span class="label">版本</span><span>{{ appVersion }}</span></div>
+      <div class="info-row"><span class="label">{{ t('settings.version') }}</span><span>{{ appVersion }}</span></div>
       <div class="info-row"><span class="label">授權狀態</span><span class="badge-default">未啟用</span></div>
     </section>
 
@@ -66,4 +88,7 @@ h2 { margin-bottom: 12px; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .result { margin-top: 12px; padding: 12px; background: #f0fdf4; color: #166534; border-radius: 6px; }
 .placeholder-text { color: #999; }
+.setting-item { display: flex; align-items: center; gap: 12px; }
+.setting-item label { font-weight: 500; color: #666; min-width: 60px; }
+.setting-item .input { width: auto; min-width: 200px; margin-top: 0; }
 </style>

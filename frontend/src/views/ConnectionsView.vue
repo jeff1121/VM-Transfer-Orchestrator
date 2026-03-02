@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useConnectionsStore } from '@/stores/connections'
 import { connectionsApi } from '@/api/connections'
 import type { CreateConnectionRequest, ConnectionType } from '@/types'
 
+const { t } = useI18n()
 const connectionsStore = useConnectionsStore()
 const showForm = ref(false)
 const validating = ref<string | null>(null)
@@ -31,7 +33,7 @@ const handleCreate = async () => {
     showForm.value = false
     resetForm()
   } catch (e) {
-    formError.value = e instanceof Error ? e.message : '建立連線失敗'
+    formError.value = e instanceof Error ? e.message : t('common.noData')
   }
 }
 
@@ -56,7 +58,7 @@ const handleDelete = async (id: string) => {
   }
 }
 
-const formatDate = (iso: string | undefined) => iso ? new Date(iso).toLocaleString('zh-TW') : '未驗證'
+const formatDate = (iso: string | undefined) => iso ? new Date(iso).toLocaleString('zh-TW') : t('connections.notValidated')
 
 onMounted(() => connectionsStore.fetchConnections())
 </script>
@@ -64,41 +66,41 @@ onMounted(() => connectionsStore.fetchConnections())
 <template>
   <div class="connections-page">
     <div class="header">
-      <h1>連線管理</h1>
+      <h1>{{ t('connections.title') }}</h1>
       <button class="btn btn-primary" @click="showForm = !showForm">
-        {{ showForm ? '取消' : '新增連線' }}
+        {{ showForm ? t('common.cancel') : t('connections.addConnection') }}
       </button>
     </div>
 
     <div v-if="showForm" class="form-panel">
-      <h2>新增連線</h2>
-      <label class="form-label">名稱
+      <h2>{{ t('connections.addConnection') }}</h2>
+      <label class="form-label">{{ t('connections.name') }}
         <input v-model="newConn.name" class="input" placeholder="My vSphere" />
       </label>
-      <label class="form-label">類型
+      <label class="form-label">{{ t('connections.type') }}
         <select v-model="newConn.type" class="input">
           <option v-for="t in connectionTypes" :key="t" :value="t">{{ t }}</option>
         </select>
       </label>
-      <label class="form-label">端點
+      <label class="form-label">{{ t('connections.host') }}
         <input v-model="newConn.endpoint" class="input" placeholder="https://vcenter.example.com" />
       </label>
-      <label class="form-label">密鑰
+      <label class="form-label">{{ t('webhooks.secret') }}
         <input v-model="newConn.secret" type="password" class="input" placeholder="API token / password" />
       </label>
       <div v-if="formError" class="error">{{ formError }}</div>
-      <button class="btn btn-primary" :disabled="!newConn.name || !newConn.endpoint || !newConn.secret" @click="handleCreate">建立</button>
+      <button class="btn btn-primary" :disabled="!newConn.name || !newConn.endpoint || !newConn.secret" @click="handleCreate">{{ t('common.create') }}</button>
     </div>
 
-    <div v-if="connectionsStore.loading" class="loading">載入中…</div>
+    <div v-if="connectionsStore.loading" class="loading">{{ t('common.loading') }}</div>
     <table v-else class="conn-table">
       <thead>
         <tr>
-          <th>名稱</th>
-          <th>類型</th>
-          <th>端點</th>
-          <th>驗證時間</th>
-          <th>操作</th>
+          <th>{{ t('connections.name') }}</th>
+          <th>{{ t('connections.type') }}</th>
+          <th>{{ t('connections.host') }}</th>
+          <th>{{ t('connections.validated') }}</th>
+          <th>{{ t('common.actions') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -109,15 +111,15 @@ onMounted(() => connectionsStore.fetchConnections())
           <td>{{ formatDate(c.validatedAt) }}</td>
           <td class="actions-cell">
             <button class="btn-sm btn-secondary" :disabled="validating === c.id" @click="handleValidate(c.id)">
-              {{ validating === c.id ? '驗證中…' : '驗證' }}
+              {{ validating === c.id ? t('common.loading') : t('connections.testConnection') }}
             </button>
             <button class="btn-sm btn-danger" :disabled="deleting === c.id" @click="handleDelete(c.id)">
-              {{ deleting === c.id ? '刪除中…' : '刪除' }}
+              {{ deleting === c.id ? t('common.loading') : t('common.delete') }}
             </button>
           </td>
         </tr>
         <tr v-if="connectionsStore.connections.length === 0">
-          <td colspan="5" class="empty">尚無連線</td>
+          <td colspan="5" class="empty">{{ t('common.noData') }}</td>
         </tr>
       </tbody>
     </table>

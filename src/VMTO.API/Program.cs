@@ -209,9 +209,12 @@ if (app.Environment.IsDevelopment())
 // Map endpoints
 app.MapAuthEndpoints();
 app.MapJobEndpoints();
+app.MapWebhookEndpoints();
 app.MapConnectionEndpoints();
 app.MapArtifactEndpoints();
 app.MapLicenseEndpoints();
+app.MapAuditEndpoints();
+app.MapDashboardEndpoints();
 
 // SignalR hub
 app.MapHub<MigrationHub>("/hubs/migration");

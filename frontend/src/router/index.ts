@@ -9,6 +9,8 @@ export const router = createRouter({
     { path: '/jobs/:id', name: 'job-detail', component: () => import('@/views/JobDetailView.vue') },
     { path: '/connections', name: 'connections', component: () => import('@/views/ConnectionsView.vue') },
     { path: '/settings', name: 'settings', component: () => import('@/views/SettingsView.vue') },
+    { path: '/webhooks', name: 'webhooks', component: () => import('@/views/WebhooksView.vue'), meta: { requiresAuth: true } },
+    { path: '/audit', name: 'audit', component: () => import('@/views/AuditView.vue'), meta: { requiresAuth: true } },
   ],
 })
 

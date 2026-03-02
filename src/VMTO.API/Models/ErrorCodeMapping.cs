@@ -1,6 +1,8 @@
 namespace VMTO.API.Models;
 
 // ErrorCode 對應 HTTP 狀態碼映射
+// TODO: 未來可透過前端 i18n 機制將錯誤碼對應至各語系的使用者友善訊息，
+//       後端僅回傳 errorCode，由前端根據 locale 顯示對應文字。
 public static class ErrorCodeMapping
 {
     public static int ToHttpStatusCode(string errorCode) => errorCode switch

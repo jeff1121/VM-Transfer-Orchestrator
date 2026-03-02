@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth'
 
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -16,7 +18,7 @@ const loading = ref(false)
 async function handleLogin() {
   errorMessage.value = ''
   if (!userName.value || !password.value) {
-    errorMessage.value = '請輸入使用者名稱與密碼'
+    errorMessage.value = t('auth.loginFailed')
     return
   }
 
@@ -30,7 +32,7 @@ async function handleLogin() {
     router.push('/')
   } catch (err: unknown) {
     const error = err as { response?: { data?: { message?: string } } }
-    errorMessage.value = error.response?.data?.message || '登入失敗，請重試'
+    errorMessage.value = error.response?.data?.message || t('auth.loginFailed')
   } finally {
     loading.value = false
   }
@@ -41,31 +43,31 @@ async function handleLogin() {
   <div class="login-container">
     <div class="login-card">
       <h1>VMTO</h1>
-      <p class="subtitle">VM Transfer Orchestrator</p>
+      <p class="subtitle">{{ t('auth.title') }}</p>
       <form @submit.prevent="handleLogin">
         <div class="field">
-          <label for="username">使用者名稱</label>
+          <label for="username">{{ t('auth.username') }}</label>
           <input
             id="username"
             v-model="userName"
             type="text"
-            placeholder="請輸入使用者名稱"
+            :placeholder="t('auth.username')"
             autocomplete="username"
           />
         </div>
         <div class="field">
-          <label for="password">密碼</label>
+          <label for="password">{{ t('auth.password') }}</label>
           <input
             id="password"
             v-model="password"
             type="password"
-            placeholder="請輸入密碼"
+            :placeholder="t('auth.password')"
             autocomplete="current-password"
           />
         </div>
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
         <button type="submit" :disabled="loading">
-          {{ loading ? '登入中...' : '登入' }}
+          {{ loading ? t('auth.loggingIn') : t('auth.login') }}
         </button>
       </form>
     </div>
