@@ -31,3 +31,5 @@ Thumbs.db
 ## Build artifacts
 publish/
 out/
+bin\\
+obj\\
