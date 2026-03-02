@@ -17,17 +17,17 @@ public static class JobEndpoints
         group.MapGet("/{id:guid}", GetJob);
         group.MapGet("/{id:guid}/progress", GetJobProgress);
 
-        // 寫入操作 — 僅限 Admin 或 Operator
+        // 寫入操作 — 僅限 Admin 或 Operator，套用寫入速率限制
         group.MapPost("/", CreateJob).RequireAuthorization(policy =>
-            policy.RequireRole(Roles.Admin, Roles.Operator));
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
         group.MapPost("/{id:guid}/cancel", CancelJob).RequireAuthorization(policy =>
-            policy.RequireRole(Roles.Admin, Roles.Operator));
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
         group.MapPost("/{id:guid}/pause", PauseJob).RequireAuthorization(policy =>
-            policy.RequireRole(Roles.Admin, Roles.Operator));
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
         group.MapPost("/{id:guid}/resume", ResumeJob).RequireAuthorization(policy =>
-            policy.RequireRole(Roles.Admin, Roles.Operator));
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
         group.MapPost("/{id:guid}/retry", RetryFailedSteps).RequireAuthorization(policy =>
-            policy.RequireRole(Roles.Admin, Roles.Operator));
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
     }
 
     private static async Task<IResult> ListJobs(

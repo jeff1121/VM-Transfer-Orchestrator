@@ -16,13 +16,13 @@ public static class ConnectionEndpoints
         group.MapGet("/", ListConnections);
         group.MapGet("/{id:guid}", GetConnection);
 
-        // 寫入操作 — 僅限 Admin 或 Operator
+        // 寫入操作 — 僅限 Admin 或 Operator，套用寫入速率限制
         group.MapPost("/", CreateConnection).RequireAuthorization(policy =>
-            policy.RequireRole(Roles.Admin, Roles.Operator));
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
         group.MapPost("/{id:guid}/validate", ValidateConnection).RequireAuthorization(policy =>
-            policy.RequireRole(Roles.Admin, Roles.Operator));
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
         group.MapDelete("/{id:guid}", DeleteConnection).RequireAuthorization(policy =>
-            policy.RequireRole(Roles.Admin, Roles.Operator));
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
     }
 
     private static async Task<IResult> ListConnections(

@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 using Hangfire;
 using Hangfire.PostgreSql;
 using MassTransit;
@@ -124,6 +126,69 @@ builder.Services.AddCors(options =>
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+// Rate Limiting — 依角色不同限制
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // 全域預設策略：Fixed Window（每分鐘 60 次）
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    {
+        var role = context.User.FindFirstValue(ClaimTypes.Role) ?? "anonymous";
+        var permitLimit = role switch
+        {
+            Roles.Admin => 300,     // Admin 較高限制
+            Roles.Operator => 120,  // Operator 中等限制
+            _ => 60                 // Viewer / 匿名 較低限制
+        };
+
+        var partitionKey = context.User.Identity?.IsAuthenticated == true
+            ? context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "authenticated"
+            : context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permitLimit,
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 5
+        });
+    });
+
+    // 具名策略：寫入操作更嚴格（每分鐘 30 次）
+    options.AddPolicy("write", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 2
+            }));
+
+    // 具名策略：登入端點防暴力破解（每分鐘 10 次）
+    options.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        var correlationId = context.HttpContext.Items["CorrelationId"] as string;
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new VMTO.API.Models.ErrorResponse("RATE_LIMIT_EXCEEDED", "請求頻率超過限制，請稍後再試", correlationId),
+            cancellationToken);
+    };
+});
+
 var app = builder.Build();
 
 // Middleware pipeline
@@ -131,6 +196,7 @@ app.UseResponseCompression();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseExceptionHandler();
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
