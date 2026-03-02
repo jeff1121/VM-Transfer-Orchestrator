@@ -7,6 +7,9 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <NoWarn>$(NoWarn);NU1903;NU1902;NU1901</NoWarn>
 
+    <!-- Native AOT: Shared/Domain 層已標記 IsTrimmable + IsAotCompatible -->
+    <!-- 其餘層因 EF Core/MassTransit 反射依賴暫不支援 AOT -->
+
     <!-- Centralized Version Management -->
     <VersionPrefix>0.1.0</VersionPrefix>
     <AssemblyVersion>0.1.0.0</AssemblyVersion>
