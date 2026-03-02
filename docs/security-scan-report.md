@@ -104,3 +104,59 @@
 | 審計追蹤 | ✅ 已實作 | Append-only audit log |
 
 > **結論：** 目前專案處於 MVP / 開發階段，安全機制尚未到位。程式碼架構預留了正確的安全擴充點（`IEncryptionService`、`IAuditLogService`、Middleware pipeline），上線前須依優先級完成修復。
+
+---
+
+## 5. 修復紀錄（2026-03-02）
+
+| # | 漏洞 ID | OWASP | 修復位置 | 修復方式摘要 | 狀態 |
+|---|---------|-------|----------|-------------|------|
+| 1 | S01/S02/S06 | A01/A07 | `Program.cs`、所有 Endpoints、`MigrationHub.cs` | 加入 JWT Bearer 驗證（`AddAuthentication().AddJwtBearer()`）、`UseAuthentication()`/`UseAuthorization()` middleware、所有 endpoint group 加 `.RequireAuthorization()`、Hub 加 `[Authorize]`、建立 Admin/Operator/Viewer RBAC policy | ✅ 已修復 |
+| 2 | S03 | A01 | `Program.cs` | 實作 `LocalRequestsOnlyDashboardAuthorizationFilter`，套用至 `MapHangfireDashboard`，限制只有本機請求可存取 Hangfire 儀表板 | ✅ 已修復 |
+| 3 | S04 | A03 | `LocalStorageAdapter.cs` | `GetFullPath()` 已使用 `Path.GetRelativePath()` 驗證相對路徑不含 `..` 前綴，防止 Path Traversal | ✅ 已修復（原已修復） |
+| 4 | S05 | A03 | `QemuImgService.cs` | `ConvertAsync()`/`GetInfoAsync()` 改用 `string[]` 參數列表，`RunProcessAsync()` 改用 `ProcessStartInfo.ArgumentList` 代替字串拼接 `Arguments`，消除 Command Injection 風險 | ✅ 已修復 |
+| 5 | S07 | A02 | `DependencyInjection.cs` | `AddDataProtection()` 加入 `.PersistKeysToFileSystem()` 指向 `/app/keys`（可由 `DataProtection:KeysPath` 設定覆寫），防止容器重啟後金鑰遺失 | ✅ 已修復 |
+| 6 | S08 | A02 | `DependencyInjection.cs` | S3 `AccessKey`/`SecretKey` 缺失時改為拋出 `InvalidOperationException`，不再靜默使用空字串 | ✅ 已修復 |
+| 7 | S09 | A05 | `DependencyInjection.cs` | 移除硬編碼連線字串 fallback `"Host=localhost;..."` ，缺少時拋出 `InvalidOperationException`，強制從設定讀取 | ✅ 已修復 |
+| 8 | S10 | A05 | `infra/nginx.conf` | 加入 `Strict-Transport-Security`（HSTS）標頭；`X-Frame-Options` 由 `DENY` 修正為 `SAMEORIGIN`；其他安全標頭已存在 | ✅ 已修復 |
+| 9 | S11 | A05 | `Dockerfile.api`、`Dockerfile.worker`、`Dockerfile.frontend` | 所有 Dockerfile 均已加入 `adduser --disabled-password appuser` 及 `USER appuser`；Frontend 使用 `nginx-unprivileged` 映像 | ✅ 已修復（原已修復） |
+| 10 | S12 | A05 | `helm/templates/api-deployment.yaml`、`worker-deployment.yaml`、`frontend-deployment.yaml` | 每個容器加入 `securityContext`：`runAsNonRoot: true`、`runAsUser: 1001`、`readOnlyRootFilesystem: true`、`allowPrivilegeEscalation: false`、`capabilities.drop: ["ALL"]` | ✅ 已修復 |
+| 11 | S13 | A05 | `infra/docker-compose.yml`、`infra/.env.example` | Redis 加入 `--requirepass ${REDIS_PASSWORD}` 啟動參數；API/Worker 的 Redis 連線字串加入 password 參數；`.env.example` 新增 `REDIS_PASSWORD` 說明 | ✅ 已修復 |
+| 12 | S14 | A08 | `src/VMTO.Worker/Program.cs`、新增 `MigrationSagaDbContext.cs` | Saga 從 `InMemoryRepository()` 改用 `EntityFrameworkRepository()`，新增 `MigrationSagaDbContext` 對應至 PostgreSQL `saga_migration_jobs` 資料表，採用 Optimistic 並發模式 | ✅ 已修復 |
+| 13 | S15 | A09 | `CorrelationIdMiddleware.cs` | 加入 `IsValidCorrelationId()` 驗證：長度 ≤ 64、僅允許英數字、`-`、`_`；驗證失敗時自動產生新的 Correlation ID，防止 log injection | ✅ 已修復 |
+| 14 | S16 | A10 | `VSphereClient.cs` | `vmId`、`diskKey` 均套用 `Uri.EscapeDataString()` 編碼後再插入 URL path，防止 URL 注入 | ✅ 已修復 |
+| 15 | S17 | A04 | `JobEndpoints.cs`、`ConnectionEndpoints.cs` | `pageSize` 套用 `Math.Min(pageSize, 100)` 限制最大值為 100，防止 DoS | ✅ 已修復 |
+| 16 | S18 | A04 | `ConnectionEndpoints.cs`、`IJobRepository.cs`、`JobRepository.cs` | 刪除連線前呼叫 `HasActiveJobsForConnectionAsync()` 檢查是否有 Queued/Running/Pausing 狀態的 job 使用該連線；若有則回傳 `409 Conflict` | ✅ 已修復 |
+| 17 | S19 | A04 | `SignalRNotificationService.cs`、`MigrationHub.cs` | `Clients.All` 改為 `Clients.Group(jobId.ToString())`；Hub 新增 `JoinJob()`/`LeaveJob()` 方法，讓用戶訂閱特定 job 的進度通知 | ✅ 已修復 |
+| 18 | S21 | A05 | `Program.cs` | CORS `AllowAnyMethod()` 改為 `.WithMethods("GET", "POST", "PUT", "DELETE")`，限制允許的 HTTP 方法 | ✅ 已修復 |
+
+---
+
+## 6. 更新後 OWASP Top 10 覆蓋分析
+
+| OWASP | 類別 | 修復前 | 修復後 | 殘留問題 |
+|-------|------|--------|--------|---------|
+| A01 | Broken Access Control | 🔴 不合格 | ✅ 已改善 | Hangfire 生產環境應改用 JWT filter |
+| A02 | Cryptographic Failures | 🟡 需改善 | ✅ 已改善 | DataProtection keys volume 需在部署時掛載 |
+| A03 | Injection | 🔴 不合格 | ✅ 已修復 | — |
+| A04 | Insecure Design | 🟡 需改善 | ✅ 已改善 | S20（DDD invariant）、S24（StorageUri 洩漏）未修復 |
+| A05 | Security Misconfiguration | 🟡 需改善 | ✅ 已改善 | S22（.dockerignore）、S23（預覽套件）未修復 |
+| A06 | Vulnerable Components | 🟢 低風險 | �� 低風險 | OpenTelemetry beta 版仍在使用 |
+| A07 | Identification Failures | 🔴 不合格 | ✅ 已修復 | — |
+| A08 | Data Integrity Failures | 🟡 需改善 | ✅ 已修復 | — |
+| A09 | Logging Failures | 🟡 需改善 | ✅ 已修復 | — |
+| A10 | SSRF | 🟡 需改善 | ✅ 已改善 | connectionId 動態設定 BaseAddress 仍未實作 |
+
+---
+
+## 7. 更新合規性摘要
+
+| 合規標準 | 修復前 | 修復後 | 備註 |
+|----------|--------|--------|------|
+| OWASP Top 10 | ❌ 不合格 | ✅ 大幅改善 | A01/A03/A07 高風險已修復，殘留 A04/A05 低風險問題 |
+| CIS Docker Benchmark | ⚠️ 部分合格 | ✅ 已合規 | 容器以非 root 執行、Helm 加入 securityContext |
+| NIST 800-53 (AC) | ❌ 不合格 | ✅ 已基本合規 | JWT Bearer + RBAC 存取控制已實作 |
+| 資料加密靜態 | ⚠️ 實作但不完整 | ✅ 已改善 | DataProtection key 持久化已設定，需部署時掛載 volume |
+| 審計追蹤 | ✅ 已實作 | ✅ 已實作 | Append-only audit log |
+
+> **結論：** 所有 P0（高風險）及大部分 P1（中風險）漏洞已修復。殘留的低風險項目（S20、S22、S23、S24）及 Hangfire 生產環境 JWT filter 待後續迭代完成。

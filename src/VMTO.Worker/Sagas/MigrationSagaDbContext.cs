@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 namespace VMTO.Worker.Sagas;
@@ -19,8 +20,8 @@ public sealed class MigrationSagaDbContext : DbContext
             entity.Property(x => x.CurrentState).HasMaxLength(64).IsRequired();
             entity.Property(x => x.StepNames)
                 .HasConversion(
-                    v => string.Join(',', v),
-                    v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
         });
     }
 }

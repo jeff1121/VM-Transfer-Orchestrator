@@ -49,7 +49,8 @@ public static class DependencyInjection
 
         services.AddSingleton<StorageAdapterFactory>();
 
-        // Encryption
+        // Encryption — 金鑰持久化至 FileSystem
+        // 生產環境必須透過 volume mount 確保 KeysPath 目錄持久化，否則容器重啟後將無法解密既有資料
         services.AddDataProtection()
             .PersistKeysToFileSystem(new DirectoryInfo(
                 configuration["DataProtection:KeysPath"] ?? "/app/keys"))

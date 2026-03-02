@@ -59,8 +59,9 @@ builder.Services.AddCors(options =>
 });
 
 // JWT Authentication
-var jwtKey = builder.Configuration["Jwt:SecretKey"]
-    ?? throw new InvalidOperationException("Jwt:SecretKey is required.");
+var jwtKey = builder.Configuration["Jwt:SecretKey"];
+if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
+    throw new InvalidOperationException("Jwt:SecretKey is required and must be at least 32 characters.");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "VMTO";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "VMTO";
 
