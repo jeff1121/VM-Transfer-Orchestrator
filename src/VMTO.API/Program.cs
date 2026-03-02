@@ -3,10 +3,14 @@ using Hangfire.PostgreSql;
 using MassTransit;
 using VMTO.API.Endpoints;
 using VMTO.API.Middleware;
+using VMTO.Application;
 using VMTO.Infrastructure;
 using VMTO.Infrastructure.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Application services (command/query handlers)
+builder.Services.AddApplication();
 
 // Infrastructure services (EF, Redis, clients, crypto, telemetry, health checks)
 builder.Services.AddInfrastructure(builder.Configuration);
