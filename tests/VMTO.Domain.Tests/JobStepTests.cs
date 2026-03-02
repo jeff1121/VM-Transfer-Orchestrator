@@ -33,8 +33,7 @@ public sealed class JobStepTests
         var result = step.Fail("something went wrong");
 
         result.IsSuccess.Should().BeTrue();
-        step.DomainEvents.Should().ContainSingle(e => e is StepFailedEvent);
-        var evt = (StepFailedEvent)step.DomainEvents[0];
+        var evt = step.DomainEvents.OfType<StepFailedEvent>().Single();
         evt.Error.Should().Be("something went wrong");
     }
 

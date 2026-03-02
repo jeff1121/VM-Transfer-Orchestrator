@@ -21,9 +21,9 @@ public sealed class Result
 
 public sealed class Result<T>
 {
+    [MemberNotNullWhen(true, nameof(Value))]
     public bool IsSuccess { get; }
 
-    [MemberNotNullWhen(true, nameof(IsSuccess))]
     public T? Value { get; }
     public string? ErrorCode { get; }
     public string? ErrorMessage { get; }

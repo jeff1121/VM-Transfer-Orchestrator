@@ -116,7 +116,7 @@ public sealed class JobStep
 
     public Result SetLogsUri(string uri)
     {
-        if (Status is not StepStatus.Running and not StepStatus.Succeeded)
+        if (Status is not (StepStatus.Running or StepStatus.Succeeded))
             return Result.Failure(ErrorCodes.Job.InvalidTransition,
                 $"Cannot set logs URI for step '{Name}' in status {Status}.");
 
