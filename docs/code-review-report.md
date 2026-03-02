@@ -132,3 +132,38 @@
 | 🟢 P2 | Domain Result 檢查 | Endpoint 忽略錯誤回傳值 |
 | 🟢 P2 | Consumer 冪等性 | 重複消費風險 |
 | 🟢 P2 | nginx 安全標頭 | 防禦 XSS/Clickjacking |
+
+---
+
+## 5. 修復紀錄（2026-03-02）
+
+| # | 問題 | 位置 | 修復方式 | 狀態 |
+|---|------|------|----------|------|
+| CR-01 | Saga 使用 InMemoryRepository，Worker 重啟後狀態遺失 | `src/VMTO.Worker/Program.cs` | 新增 `MigrationSagaDbContext`，改用 `EntityFrameworkSagaRepository`，Saga 狀態持久化至 PostgreSQL | ✅ 已修復 |
+| CR-02 | Saga 在 StepCompleted 後不自動推進下一步，pipeline 無法銜接 | `src/VMTO.Worker/Sagas/MigrationJobSaga.cs` | 在各狀態的 `StepCompleted` 處理中加入 `.PublishAsync()`，自動發布下一步 Consumer message；同時更新 `JobStartedMessage` 攜帶 `StepIds` 與步驟參數，Consumers 於 `StepCompletedMessage.OutputData` 回傳執行結果 | ✅ 已修復 |
+| CR-03 | 4 個 Incremental Sync Consumers 未在 Worker 啟動時註冊 | `src/VMTO.Worker/Program.cs` | 補上 `EnableCbtConsumer`、`IncrementalPullConsumer`、`ApplyDeltaConsumer`、`FinalSyncCutoverConsumer` 的 `AddConsumer<>()` 註冊 | ✅ 已修復 |
+| CR-04 | `IAuditLogService` 介面定義在 Infrastructure 層，違反 Ports/Adapters | `src/VMTO.Infrastructure/Security/AuditLogService.cs` | 將介面移至 `src/VMTO.Application/Ports/Services/IAuditLogService.cs`，更新 Infrastructure 引用 | ✅ 已修復 |
+| CR-05 | `MockPveClient._nextVmId++` 非 Thread-safe | `src/VMTO.Infrastructure/Clients/MockPveClient.cs` | 改用 `Interlocked.Increment(ref _nextVmId)` | ✅ 已修復 |
+| CR-06 | `JobStep.Retry()` 未重設 Progress | `src/VMTO.Domain/Aggregates/MigrationJob/JobStep.cs` | 在 `Retry()` 中加入 `Progress = 0;` | ✅ 已修復 |
+| CR-07 | `JobStep.LogsUri` 無 setter，無法記錄日誌 URI | `src/VMTO.Domain/Aggregates/MigrationJob/JobStep.cs` | 新增 `SetLogsUri(string uri)` 方法，限定 Running/Succeeded 狀態才允許設定 | ✅ 已修復 |
+| CR-08 | `Checksum` 缺少建構時驗證 | `src/VMTO.Domain/ValueObjects/Checksum.cs` | 改為完整屬性定義，加入 `ArgumentException.ThrowIfNullOrEmpty` 驗證 | ✅ 已修復 |
+| CR-09 | `StorageTarget` 缺少建構時驗證 | `src/VMTO.Domain/ValueObjects/StorageTarget.cs` | 改為完整屬性定義，加入 `ArgumentException.ThrowIfNullOrEmpty` 驗證 | ✅ 已修復 |
+| CR-10 | `EncryptedSecret.ToString()` 可能洩漏密文 | `src/VMTO.Domain/ValueObjects/EncryptedSecret.cs` | 覆寫 `ToString()` 回傳 `"[REDACTED]"` | ✅ 已修復 |
+| CR-11 | `StepCompletedEvent` / `StepFailedEvent` 未在 JobStep 中 raise | `src/VMTO.Domain/Aggregates/MigrationJob/JobStep.cs` | 為 `JobStep` 加入 `_domainEvents` 集合及 `ClearDomainEvents()`，在 `Complete()` 和 `Fail()` 中 raise 對應 Domain Event | ✅ 已修復 |
+| CR-12 | `ListJobsQuery` 缺少 Page/PageSize 上下界驗證 | `src/VMTO.Application/Queries/Jobs/ListJobsQuery.cs` | 改為具驗證建構子，`Page >= 1`、`PageSize` 介於 1~100 | ✅ 已修復 |
+| CR-13 | Consumer 中 `async void` Progress 回呼，例外不會被捕獲 | `src/VMTO.Worker/Consumers/ConvertDiskConsumer.cs`<br>`ExportVmdkConsumer.cs`<br>`ImportToPveConsumer.cs` | 改為同步 lambda（`_ = notifications.Send...` 非同步觸發），移除 `async void` | ✅ 已修復 |
+| CR-14 | 多個 Consumer 大量重複的 `FailStepAsync` 程式碼 | `src/VMTO.Worker/Consumers/` | 提取至 `ConsumerHelper.FailStepAsync()` 共用靜態方法 | ✅ 已修復 |
+| CR-15 | `Result<T>.Value` 缺少 `[MemberNotNullWhen]` | `src/VMTO.Shared/Result.cs` | 加入 `[MemberNotNullWhen(true, nameof(IsSuccess))]` | ✅ 已修復 |
+| CR-16 | `CorrelationId.From()` 未驗證輸入 | `src/VMTO.Shared/CorrelationId.cs` | 加入 `ArgumentException.ThrowIfNullOrEmpty` 驗證 | ✅ 已修復 |
+| CR-17 | Endpoint 未檢查 Domain `Result.IsSuccess` | `src/VMTO.API/Endpoints/JobEndpoints.cs` | `CancelJob`、`PauseJob`、`ResumeJob` 均加入 Result 檢查，失敗時回傳 `Results.BadRequest` | ✅ 已修復 |
+
+### 評分更新（修復後）
+
+| 層 | 原評分 | 修復後評分 | 改善說明 |
+|----|--------|------------|----------|
+| VMTO.Shared | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | `[MemberNotNullWhen]` + `CorrelationId.From()` 驗證 |
+| VMTO.Domain | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Domain Events、Progress 重設、SetLogsUri、Value Object 驗證 |
+| VMTO.Application | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | IAuditLogService 移入正確層、ListJobsQuery 驗證 |
+| VMTO.Infrastructure | ⭐⭐⭐½ | ⭐⭐⭐⭐ | MockPveClient thread-safe、IAuditLogService 引用修正 |
+| VMTO.API | ⭐⭐⭐½ | ⭐⭐⭐⭐ | Domain Result 檢查，BadRequest 回傳 |
+| VMTO.Worker | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Saga 持久化、自動推進、Consumer 註冊完整、async void 修復、共用 Helper |

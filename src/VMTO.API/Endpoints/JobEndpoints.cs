@@ -60,7 +60,8 @@ public static class JobEndpoints
     {
         var job = await repo.GetByIdAsync(id, ct);
         if (job is null) return Results.NotFound();
-        job.RequestCancel();
+        var result = job.RequestCancel();
+        if (!result.IsSuccess) return Results.BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         await repo.UpdateAsync(job, ct);
         return Results.Ok(MapToDto(job));
     }
@@ -69,7 +70,8 @@ public static class JobEndpoints
     {
         var job = await repo.GetByIdAsync(id, ct);
         if (job is null) return Results.NotFound();
-        job.RequestPause();
+        var result = job.RequestPause();
+        if (!result.IsSuccess) return Results.BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         await repo.UpdateAsync(job, ct);
         return Results.Ok(MapToDto(job));
     }
@@ -78,7 +80,8 @@ public static class JobEndpoints
     {
         var job = await repo.GetByIdAsync(id, ct);
         if (job is null) return Results.NotFound();
-        job.RequestResume();
+        var result = job.RequestResume();
+        if (!result.IsSuccess) return Results.BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         await repo.UpdateAsync(job, ct);
         return Results.Ok(MapToDto(job));
     }

@@ -42,10 +42,10 @@ public sealed partial class ExportVmdkConsumer(
 
         try
         {
-            var progress = new Progress<int>(async percent =>
+            var progress = new Progress<int>(percent =>
             {
                 step.UpdateProgress(percent);
-                await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, percent, StepStatus.Running, ct);
+                _ = notifications.SendStepProgressAsync(msg.JobId, msg.StepId, percent, StepStatus.Running, ct);
             });
 
             var exportResult = await vSphereClient.ExportVmdkAsync(
@@ -73,7 +73,9 @@ public sealed partial class ExportVmdkConsumer(
             await jobRepository.UpdateAsync(job, ct);
             await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, 100, StepStatus.Succeeded, ct);
 
-            await context.Publish(new StepCompletedMessage(msg.JobId, msg.StepId, step.Name, msg.CorrelationId), ct);
+            await context.Publish(new StepCompletedMessage(
+                msg.JobId, msg.StepId, step.Name, msg.CorrelationId,
+                new Dictionary<string, string> { ["ExportedStorageKey"] = storageKey }), ct);
         }
         catch (Exception ex)
         {

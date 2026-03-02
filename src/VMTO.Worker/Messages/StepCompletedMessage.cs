@@ -4,4 +4,5 @@ public sealed record StepCompletedMessage(
     Guid JobId,
     Guid StepId,
     string StepName,
-    Guid CorrelationId);
+    Guid CorrelationId,
+    Dictionary<string, string>? OutputData = null);
