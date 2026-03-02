@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import packageJson from '../../../package.json'
-
-const appVersion = packageJson.version
+const appVersion = __APP_VERSION__
 const licenseKey = ref('')
 const activating = ref(false)
 const activationResult = ref<string | null>(null)

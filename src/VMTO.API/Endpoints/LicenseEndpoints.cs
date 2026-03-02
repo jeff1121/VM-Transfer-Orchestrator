@@ -1,3 +1,4 @@
+using VMTO.API.Auth;
 using VMTO.Application.Ports.Repositories;
 using VMTO.Application.Ports.Services;
 
@@ -7,10 +8,12 @@ public static class LicenseEndpoints
 {
     public static void MapLicenseEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/license").WithTags("License");
+        var group = app.MapGroup("/api/license").WithTags("License").RequireAuthorization();
 
         group.MapGet("/", GetLicense);
-        group.MapPost("/activate", ActivateLicense);
+        // 啟用授權 — 僅限 Admin
+        group.MapPost("/activate", ActivateLicense).RequireAuthorization(policy =>
+            policy.RequireRole(Roles.Admin));
     }
 
     private static async Task<IResult> GetLicense(ILicenseRepository repo, CancellationToken ct)

@@ -1,3 +1,4 @@
+using VMTO.API.Auth;
 using VMTO.Application.DTOs;
 using VMTO.Application.Ports.Repositories;
 using VMTO.Domain.Aggregates.MigrationJob;
@@ -9,16 +10,24 @@ public static class JobEndpoints
 {
     public static void MapJobEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/jobs").WithTags("Jobs");
+        var group = app.MapGroup("/api/jobs").WithTags("Jobs").RequireAuthorization();
 
+        // 讀取操作 — 任何已認證使用者皆可存取
         group.MapGet("/", ListJobs);
         group.MapGet("/{id:guid}", GetJob);
-        group.MapPost("/", CreateJob);
-        group.MapPost("/{id:guid}/cancel", CancelJob);
-        group.MapPost("/{id:guid}/pause", PauseJob);
-        group.MapPost("/{id:guid}/resume", ResumeJob);
-        group.MapPost("/{id:guid}/retry", RetryFailedSteps);
         group.MapGet("/{id:guid}/progress", GetJobProgress);
+
+        // 寫入操作 — 僅限 Admin 或 Operator
+        group.MapPost("/", CreateJob).RequireAuthorization(policy =>
+            policy.RequireRole(Roles.Admin, Roles.Operator));
+        group.MapPost("/{id:guid}/cancel", CancelJob).RequireAuthorization(policy =>
+            policy.RequireRole(Roles.Admin, Roles.Operator));
+        group.MapPost("/{id:guid}/pause", PauseJob).RequireAuthorization(policy =>
+            policy.RequireRole(Roles.Admin, Roles.Operator));
+        group.MapPost("/{id:guid}/resume", ResumeJob).RequireAuthorization(policy =>
+            policy.RequireRole(Roles.Admin, Roles.Operator));
+        group.MapPost("/{id:guid}/retry", RetryFailedSteps).RequireAuthorization(policy =>
+            policy.RequireRole(Roles.Admin, Roles.Operator));
     }
 
     private static async Task<IResult> ListJobs(
