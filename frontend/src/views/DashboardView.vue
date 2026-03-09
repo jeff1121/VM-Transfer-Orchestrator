@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useJobsStore } from '@/stores/jobs'
 import { useSignalR } from '@/composables/useSignalR'
+import { useTheme } from '@/composables/useTheme'
 import type { JobStatus } from '@/types'
 import { dashboardApi, type DashboardStats } from '@/api/dashboard'
 
@@ -25,6 +26,8 @@ const { t } = useI18n()
 const router = useRouter()
 const jobsStore = useJobsStore()
 const { connect, connected, onJobProgress } = useSignalR()
+const { resolvedTheme } = useTheme()
+const chartTheme = computed(() => resolvedTheme.value === 'dark' ? 'dark' : undefined)
 
 // 圖表統計資料
 const stats = ref<DashboardStats | null>(null)
@@ -191,10 +194,10 @@ onMounted(async () => {
       <div v-else-if="statsError" class="error">{{ statsError }}</div>
       <div v-else-if="stats" class="charts-grid">
         <div class="chart-container">
-          <v-chart :option="pieOption" autoresize class="chart" />
+          <v-chart :option="pieOption" :theme="chartTheme" autoresize class="chart" />
         </div>
         <div class="chart-container">
-          <v-chart :option="lineOption" autoresize class="chart" />
+          <v-chart :option="lineOption" :theme="chartTheme" autoresize class="chart" />
         </div>
       </div>
     </section>
@@ -213,16 +216,16 @@ onMounted(async () => {
       </thead>
       <tbody>
         <tr v-for="job in recentJobs" :key="job.id" class="job-row" @click="router.push(`/jobs/${job.id}`)">
-          <td class="job-id">{{ job.id.slice(0, 8) }}…</td>
-          <td>{{ job.strategy }}</td>
-          <td><span :class="['badge', statusClass(job.status)]">{{ job.status }}</span></td>
-          <td>
+          <td :data-label="t('dashboard.table.id')" class="job-id">{{ job.id.slice(0, 8) }}…</td>
+          <td :data-label="t('dashboard.table.strategy')">{{ job.strategy }}</td>
+          <td :data-label="t('dashboard.table.status')"><span :class="['badge', statusClass(job.status)]">{{ job.status }}</span></td>
+          <td :data-label="t('dashboard.table.progress')">
             <div class="progress-bar">
               <div class="progress-fill" :style="{ width: job.progress + '%' }"></div>
             </div>
             <span class="progress-text">{{ job.progress }}%</span>
           </td>
-          <td>{{ formatDate(job.createdAt) }}</td>
+          <td :data-label="t('dashboard.table.createdAt')">{{ formatDate(job.createdAt) }}</td>
         </tr>
         <tr v-if="recentJobs.length === 0">
           <td colspan="5" class="empty">{{ t('dashboard.noJobs') }}</td>
@@ -236,25 +239,25 @@ onMounted(async () => {
 .dashboard { max-width: 1000px; }
 h1 { margin-bottom: 8px; }
 h2 { margin: 24px 0 12px; }
-.signal-status { margin-bottom: 16px; font-size: 0.85rem; color: #666; display: flex; align-items: center; gap: 6px; }
+.signal-status { margin-bottom: 16px; font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
 .dot-green, .dot-red { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot-green { background: #22c55e; }
 .dot-red { background: #ef4444; }
 .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-.card { background: white; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.card { background: var(--bg-elevated); border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.1); border: 1px solid var(--border-color); }
 .card-count { font-size: 2rem; font-weight: 700; }
-.card-label { color: #666; margin-top: 4px; }
+.card-label { color: var(--text-secondary); margin-top: 4px; }
 .card-running .card-count { color: #3b82f6; }
 .card-queued .card-count { color: #f59e0b; }
 .card-failed .card-count { color: #ef4444; }
 .card-succeeded .card-count { color: #22c55e; }
 .error { background: #fef2f2; color: #b91c1c; padding: 12px; border-radius: 6px; margin-bottom: 16px; }
-.loading { color: #666; padding: 20px; }
-.jobs-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-.jobs-table th { background: #f9fafb; text-align: left; padding: 12px; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
-.jobs-table td { padding: 12px; border-bottom: 1px solid #f3f4f6; }
+.loading { color: var(--text-secondary); padding: 20px; }
+.jobs-table { width: 100%; border-collapse: collapse; background: var(--bg-elevated); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); border: 1px solid var(--border-color); }
+.jobs-table th { background: var(--bg-primary); text-align: left; padding: 12px; font-weight: 600; border-bottom: 1px solid var(--border-color); }
+.jobs-table td { padding: 12px; border-bottom: 1px solid var(--border-color); }
 .job-row { cursor: pointer; transition: background 0.15s; }
-.job-row:hover { background: #f9fafb; }
+.job-row:hover { background: var(--bg-primary); }
 .job-id { font-family: monospace; font-size: 0.85rem; }
 .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
 .badge-running { background: #dbeafe; color: #1d4ed8; }
@@ -264,21 +267,26 @@ h2 { margin: 24px 0 12px; }
 .badge-paused { background: #f3f4f6; color: #374151; }
 .badge-cancelled { background: #f3f4f6; color: #6b7280; }
 .badge-default { background: #f3f4f6; color: #374151; }
-.progress-bar { width: 100px; height: 6px; background: #e5e7eb; border-radius: 3px; display: inline-block; vertical-align: middle; }
+.progress-bar { width: 100px; height: 6px; background: var(--border-color); border-radius: 3px; display: inline-block; vertical-align: middle; }
 .progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.3s; }
-.progress-text { font-size: 0.8rem; color: #666; margin-left: 6px; }
-.empty { text-align: center; color: #999; padding: 24px; }
+.progress-text { font-size: 0.8rem; color: var(--text-secondary); margin-left: 6px; }
+.empty { text-align: center; color: var(--text-secondary); padding: 24px; }
 .charts-section { margin-bottom: 24px; }
 .stats-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
-.stat-card { background: white; border-radius: 8px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-.stat-value { font-size: 1.5rem; font-weight: 700; color: #1e293b; }
-.stat-label { color: #64748b; margin-top: 4px; font-size: 0.85rem; }
+.stat-card { background: var(--bg-elevated); border-radius: 8px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.1); border: 1px solid var(--border-color); }
+.stat-value { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+.stat-label { color: var(--text-secondary); margin-top: 4px; font-size: 0.85rem; }
 .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.chart-container { background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.chart-container { background: var(--bg-elevated); border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.1); border: 1px solid var(--border-color); }
 .chart { width: 100%; height: 320px; }
 @media (max-width: 768px) {
   .charts-grid { grid-template-columns: 1fr; }
   .stats-cards { grid-template-columns: 1fr; }
   .summary-cards { grid-template-columns: repeat(2, 1fr); }
+  .jobs-table, .jobs-table tbody, .jobs-table tr, .jobs-table td { display: block; width: 100%; }
+  .jobs-table thead { display: none; }
+  .jobs-table tr { padding: 12px; border-bottom: 1px solid var(--border-color); }
+  .jobs-table td { border: 0; padding: 6px 0; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+  .jobs-table td::before { content: attr(data-label); color: var(--text-secondary); font-weight: 600; }
 }
 </style>

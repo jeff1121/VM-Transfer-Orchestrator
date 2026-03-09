@@ -330,19 +330,19 @@
 
 > **目標**：建立完整分散式追蹤、指標收集、日誌聚合體系
 
-- [ ] **E1.1** — OpenTelemetry 基礎建設
+- [x] **E1.1** — OpenTelemetry 基礎建設
   - 安裝 `OpenTelemetry.Extensions.Hosting`、`OpenTelemetry.Instrumentation.AspNetCore`、`OpenTelemetry.Instrumentation.Http`、`OpenTelemetry.Instrumentation.EntityFrameworkCore`
   - 在 `Infrastructure/Telemetry/` 擴展 `AddVmtoTelemetry()` 加入 TracerProvider + MeterProvider
   - 設定 OTLP exporter（支援 Jaeger / Grafana Tempo）
   - API 與 Worker 專案啟用自動儀器化
 
-- [ ] **E1.2** — 自訂追蹤 Span
+- [x] **E1.2** — 自訂追蹤 Span
   - 每個 Worker Consumer 加入自訂 Activity/Span（步驟名稱、JobId、StepId）
   - qemu-img 轉換過程加入 Span（含進度百分比 tag）
   - S3 上傳加入 Span（含 chunk 編號、大小）
   - vSphere/PVE client 呼叫加入 Span
 
-- [ ] **E1.3** — Prometheus 指標暴露
+- [x] **E1.3** — Prometheus 指標暴露
   - 安裝 `OpenTelemetry.Exporter.Prometheus.AspNetCore`
   - 建立 `VmtoMetrics` 靜態類定義所有 Counter/Histogram/Gauge：
     - `vmto_jobs_total{status, strategy}` — 任務計數器
@@ -352,13 +352,13 @@
     - `vmto_queue_depth{queue_name}` — Queue 深度
   - 暴露 `/metrics` endpoint
 
-- [ ] **E1.4** — 結構化日誌強化
+- [x] **E1.4** — 結構化日誌強化
   - 安裝 `Serilog.Enrichers.CorrelationId`
   - 加入自訂 Enricher：JobId、StepId（從 AsyncLocal 讀取）
   - 設定 Serilog Sink 輸出至 Console（JSON 格式）+ File（滾動）
   - 敏感資料自動遮罩（password、secret、token 欄位）
 
-- [ ] **E1.5** — 進階 Health Check
+- [x] **E1.5** — 進階 Health Check
   - `DbMigrationHealthCheck` — 驗證 DB migration 版本是否最新
   - `RabbitMqHealthCheck` — 驗證 RabbitMQ 連線 + queue 存在
   - `MinioHealthCheck` — 驗證 MinIO bucket 存在 + 可寫入
@@ -366,7 +366,7 @@
   - `/health/ready` vs `/health/live` 分離
   - Health Check UI 頁面（`AspNetCore.HealthChecks.UI`）
 
-- [ ] **E1.6** — Grafana Dashboard + Docker Compose 整合
+- [x] **E1.6** — Grafana Dashboard + Docker Compose 整合
   - `infra/docker-compose.yml` 新增 Jaeger + Prometheus + Grafana 容器
   - 提供預建 Grafana JSON Dashboard（遷移概覽、效能分析、錯誤追蹤）
   - Prometheus `prometheus.yml` 自動 scrape API + Worker
@@ -378,7 +378,7 @@
 
 > **目標**：確保系統在外部服務故障時優雅降級並自動恢復
 
-- [ ] **E3.1** — Circuit Breaker 模式（Polly v8）
+- [x] **E3.1** — Circuit Breaker 模式（Polly v8）
   - 安裝 `Microsoft.Extensions.Http.Resilience`
   - `vSphere API`：5 次失敗開啟斷路器，30 秒後半開
   - `PVE API`：同上策略
@@ -386,34 +386,34 @@
   - 斷路器狀態變更時記錄日誌 + 觸發 Webhook 通知
   - 斷路器狀態暴露為 Prometheus 指標（`vmto_circuit_breaker_state`）
 
-- [ ] **E3.2** — 統一 Retry 策略
+- [x] **E3.2** — 統一 Retry 策略
   - 定義 `RetryPolicyOptions` 設定類（可從 appsettings 讀取）
   - 指數退避 + 抖動（jitter）：base 1s, max 30s, factor 2
   - 分類可重試錯誤（timeout, 5xx, connection reset）vs 不可重試（4xx, disk full）
   - Worker Consumer 的 MassTransit retry 設定統一管理
   - 每次 retry 記錄日誌（含 attempt 次數、等待時間）
 
-- [ ] **E3.3** — Dead-Letter Queue（DLQ）
+- [x] **E3.3** — Dead-Letter Queue（DLQ）
   - MassTransit `_error` / `_skipped` queue 設定
   - `DlqConsumer`：消費失敗訊息 → 記錄至 `dead_letter_logs` 表 → 通知 Admin
   - 新增 `DeadLetterLogEntry` EF 實體 + Configuration
   - API endpoint `POST /api/ops/dlq/{id}/replay` — 重發單筆失敗訊息
   - API endpoint `GET /api/ops/dlq` — 列出 DLQ 訊息（分頁）
 
-- [ ] **E3.4** — 超時與取消強化
+- [x] **E3.4** — 超時與取消強化
   - 所有 `HttpClient` 呼叫套用 Polly timeout policy（outer timeout）
   - Worker Consumer heartbeat 機制（定期報告進度防止 RabbitMQ prefetch timeout）
   - `CancellationToken` 全鏈路傳播驗證（撰寫測試確認）
   - qemu-img 執行加入 process-level timeout（kill -9 fallback）
 
-- [ ] **E3.5** — Graceful Shutdown
+- [x] **E3.5** — Graceful Shutdown
   - Worker 收到 `SIGTERM` → 停止接受新訊息 → 等待 in-flight 完成（最長 60 秒）
   - 實作 `IHostedService.StopAsync()` 正確處理
   - Docker Compose `stop_grace_period: 90s` 設定
   - Helm `terminationGracePeriodSeconds: 90` 設定
   - Shutdown 過程記錄日誌
 
-- [ ] **E3.6** — Chaos Testing 就緒
+- [x] **E3.6** — Chaos Testing 就緒
   - 建立 `IChaosPolicy` 介面 + `ChaosDecorator<T>` 泛型裝飾器
   - 支援注入：隨機延遲（0-5s）、隨機失敗（可設定比率）、隨機 timeout
   - 設定驅動：`Chaos:Enabled`、`Chaos:FailureRate`、`Chaos:MaxDelayMs`
@@ -426,13 +426,13 @@
 
 > **目標**：提升前端至產品級水準
 
-- [ ] **E4.1** — SignalR 增強
+- [x] **E4.1** — SignalR 增強
   - 自動重連 + UI 斷線提示橫幅（含倒計時秒數）
   - 連線品質指示器（ping 延遲 ms 顯示）
   - 重連失敗 N 次後提示「手動重新整理」
   - 連線狀態寫入 Pinia store，全域可用
 
-- [ ] **E4.2** — 深色模式
+- [x] **E4.2** — 深色模式
   - CSS custom properties 定義 light/dark 兩組色彩變數
   - 自動偵測 `prefers-color-scheme` 系統偏好
   - SettingsView 新增主題切換（自動/淺色/深色）
@@ -440,20 +440,20 @@
   - ECharts 圖表配色同步切換（dark theme）
   - 所有 View 元件適配深色模式
 
-- [ ] **E4.3** — PWA 支援
+- [x] **E4.3** — PWA 支援
   - 安裝 `vite-plugin-pwa`
   - Service Worker：靜態資源 precache + runtime cache（API 回應）
   - Web App Manifest：圖示、名稱、啟動畫面
   - 離線回退頁面（顯示快取資料 + 離線提示）
   - 可安裝至桌面/手機主畫面
 
-- [ ] **E4.4** — 行動裝置適配
+- [x] **E4.4** — 行動裝置適配
   - 響應式側邊欄：< 768px 改為 hamburger menu + 滑出抽屜
   - 表格元件：小螢幕自動切換為卡片佈局
   - 觸控友善：按鈕最小 44×44px、適當間距
   - 底部導航列（手機版）
 
-- [ ] **E4.5** — 通知中心
+- [x] **E4.5** — 通知中心
   - 右上角通知鈴鐺 icon（未讀計數 badge）
   - 即時 toast notification（成功/失敗/警告，3 秒自動消失）
   - 通知歷史抽屜（右側滑出面板）
@@ -466,33 +466,33 @@
 
 > **目標**：減少人工介入，讓系統自動診斷、修復、擴縮容
 
-- [ ] **E5.1** — 智慧自動重試與自癒
+- [x] **E5.1** — 智慧自動重試與自癒
   - 定義 `IErrorClassifier`：分析錯誤類型（暫時性 vs 永久性）
   - 暫時性錯誤（timeout, connection reset, 503）→ 自動延遲重試
   - 永久性錯誤（disk full, permission denied, 400）→ 標記失敗 + 通知
   - 卡住任務偵測：Running 超過 N 分鐘無進度更新 → 自動 cancel + 重新排隊
   - Hangfire recurring job：每 5 分鐘掃描卡住任務
 
-- [ ] **E5.2** — Hangfire 排程任務增強
+- [x] **E5.2** — Hangfire 排程任務增強
   - `ArtifactCleanupJob`：清理過期 artifact（可設定保留天數）
   - `DailyReportJob`：每日摘要報告 → 透過 Webhook 發送
   - `StorageUsageJob`：每小時檢查 MinIO bucket 使用量，超過閾值告警
   - `HealthReportJob`：每 30 分鐘產生系統健康快照
 
-- [ ] **E5.3** — Ops API 端點
+- [x] **E5.3** — Ops API 端點
   - `GET /api/ops/health-report` — 系統健康報告
   - `GET /api/ops/stuck-jobs` — 列出卡住任務 + `POST .../heal` 一鍵修復
   - `GET /api/ops/storage-usage` — 儲存空間使用報告
   - `GET /api/ops/system-info` — 系統版本、runtime、uptime
   - 所有 Ops 端點限 Admin 角色
 
-- [ ] **E5.4** — KEDA 自動擴縮
+- [x] **E5.4** — KEDA 自動擴縮
   - Helm 新增 KEDA `ScaledObject` 定義
   - 基於 RabbitMQ queue 深度擴縮 Worker（min 1 / max 10）
   - HPA 基於 CPU/Memory 擴縮 API
   - 提供 `values-keda.yaml` 範例設定
 
-- [ ] **E5.5** — 備份與災難恢復
+- [x] **E5.5** — 備份與災難恢復
   - `POST /api/ops/backup/config` — 匯出系統設定為 JSON
   - `POST /api/ops/restore/config` — 匯入設定
   - `DatabaseBackupJob`（Hangfire）：每日 pg_dump → MinIO `backups` bucket

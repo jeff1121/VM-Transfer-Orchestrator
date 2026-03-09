@@ -15,7 +15,7 @@ const deletingId = ref<string | null>(null)
 const testMessage = ref<string | null>(null)
 
 const webhookTypes = ['Slack', 'Teams', 'Email', 'Http'] as const
-const eventOptions = ['JobSucceeded', 'JobFailed', 'StepFailed'] as const
+const eventOptions = ['JobSucceeded', 'JobFailed', 'StepFailed', 'SystemAnnouncement'] as const
 
 const form = ref({
   name: '',
@@ -215,18 +215,18 @@ onMounted(fetchWebhooks)
       </thead>
       <tbody>
         <tr v-for="w in webhooks" :key="w.id">
-          <td>{{ w.name }}</td>
-          <td><span class="type-badge">{{ typeLabel(w.type) }}</span></td>
-          <td class="mono target-cell">{{ w.target }}</td>
-          <td>
+          <td :data-label="t('webhooks.name')">{{ w.name }}</td>
+          <td :data-label="t('webhooks.type')"><span class="type-badge">{{ typeLabel(w.type) }}</span></td>
+          <td :data-label="t('webhooks.target')" class="mono target-cell">{{ w.target }}</td>
+          <td :data-label="t('webhooks.events')">
             <span v-for="evt in w.events.split(',')" :key="evt" class="event-tag">{{ evt.trim() }}</span>
           </td>
-          <td>
+          <td :data-label="t('webhooks.status')">
             <button class="btn-toggle" :class="{ active: w.isEnabled }" @click="handleToggle(w)">
               {{ w.isEnabled ? t('common.enabled') : t('common.disabled') }}
             </button>
           </td>
-          <td class="actions-cell">
+          <td :data-label="t('common.actions')" class="actions-cell">
             <button class="btn-sm btn-secondary" @click="openEdit(w)">{{ t('common.edit') }}</button>
             <button class="btn-sm btn-secondary" :disabled="testingId === w.id" @click="handleTest(w.id)">
               {{ testingId === w.id ? t('common.loading') : t('common.test') }}
@@ -248,16 +248,16 @@ onMounted(fetchWebhooks)
 .webhooks-page { max-width: 1000px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 h2 { margin-bottom: 16px; }
-.form-panel { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 20px; }
+.form-panel { background: var(--bg-elevated); border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 20px; }
 .form-label { display: block; margin-bottom: 12px; font-weight: 500; }
 .input { display: block; width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; margin-top: 4px; font-size: 0.95rem; }
-.form-fieldset { border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+.form-fieldset { border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; margin-bottom: 12px; }
 .form-fieldset legend { font-weight: 500; padding: 0 4px; }
 .checkbox-label { display: inline-flex; align-items: center; gap: 4px; margin-right: 16px; cursor: pointer; }
 .toggle-label { display: inline-flex; align-items: center; gap: 6px; }
-.wh-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-.wh-table th { background: #f9fafb; text-align: left; padding: 12px; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
-.wh-table td { padding: 12px; border-bottom: 1px solid #f3f4f6; }
+.wh-table { width: 100%; border-collapse: collapse; background: var(--bg-elevated); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.wh-table th { background: var(--bg-primary); text-align: left; padding: 12px; font-weight: 600; border-bottom: 1px solid var(--border-color); }
+.wh-table td { padding: 12px; border-bottom: 1px solid var(--border-color); }
 .mono { font-family: monospace; font-size: 0.85rem; }
 .target-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .type-badge { background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
@@ -269,11 +269,21 @@ h2 { margin-bottom: 16px; }
 .btn-primary { background: #3b82f6; color: white; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-.btn-secondary { background: #e5e7eb; color: #374151; }
+.btn-secondary { background: var(--border-color); color: #374151; }
 .btn-danger { background: #fef2f2; color: #b91c1c; }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { background: #fef2f2; color: #b91c1c; padding: 12px; border-radius: 6px; margin-bottom: 12px; }
-.loading { color: #666; padding: 20px; }
-.empty { text-align: center; color: #999; padding: 24px; }
+.loading { color: var(--text-secondary); padding: 20px; }
+.empty { text-align: center; color: var(--text-secondary); padding: 24px; }
 .toast { position: fixed; top: 20px; right: 20px; background: #065f46; color: white; padding: 10px 20px; border-radius: 6px; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+@media (max-width: 768px) {
+  .header { flex-direction: column; align-items: stretch; gap: 12px; }
+  .wh-table, .wh-table tbody, .wh-table tr, .wh-table td { display: block; width: 100%; }
+  .wh-table thead { display: none; }
+  .wh-table tr { padding: 12px; border-bottom: 1px solid var(--border-color); }
+  .wh-table td { border: 0; padding: 6px 0; display: flex; justify-content: space-between; gap: 12px; }
+  .wh-table td::before { content: attr(data-label); color: var(--text-secondary); font-weight: 600; }
+  .target-cell { max-width: none; white-space: normal; overflow: visible; text-overflow: clip; text-align: right; }
+  .actions-cell { justify-content: flex-end; flex-wrap: wrap; }
+}
 </style>

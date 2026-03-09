@@ -83,7 +83,7 @@ async function handleLogin() {
   background: #1a1a2e;
 }
 .login-card {
-  background: white;
+  background: var(--bg-elevated);
   padding: 40px;
   border-radius: 8px;
   width: 360px;

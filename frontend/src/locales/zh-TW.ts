@@ -110,6 +110,7 @@ export default {
       JobSucceeded: '任務成功',
       JobFailed: '任務失敗',
       StepFailed: '步驟失敗',
+      SystemAnnouncement: '系統公告',
     },
     types: {
       Slack: 'Slack',
@@ -148,6 +149,28 @@ export default {
     title: '系統設定',
     version: '版本',
     theme: '佈景主題',
+    themeAuto: '自動（依系統）',
+    themeLight: '淺色',
+    themeDark: '深色',
     language: '語言',
+  },
+  signalr: {
+    reconnecting: '連線中斷，{seconds} 秒後重試…',
+    manualRefresh: '重連多次失敗，請手動重新整理頁面。',
+    refreshNow: '立即重新整理',
+    latencyUnknown: '延遲：--',
+    latencyValue: '延遲：{ms}ms',
+  },
+  notifications: {
+    title: '通知中心',
+    markAllRead: '全部標記已讀',
+    empty: '目前沒有通知',
+    offlineReady: '離線快取已就緒，網路中斷時可使用快取資料。',
+    types: {
+      jobCompleted: '任務完成',
+      jobFailed: '任務失敗',
+      stepFailed: '步驟失敗',
+      system: '系統公告',
+    },
   },
 }

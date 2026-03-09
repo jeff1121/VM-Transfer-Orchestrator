@@ -1,0 +1,13 @@
+keda:
+  enabled: true
+  worker:
+    minReplicaCount: 1
+    maxReplicaCount: 10
+  rabbitmq:
+    queueName: export-vmdk
+    mode: QueueLength
+    value: "5"
+
+worker:
+  hpa:
+    enabled: false

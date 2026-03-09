@@ -1,14 +1,19 @@
+using HealthChecks.UI.Client;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Hangfire;
 using Hangfire.PostgreSql;
 using MassTransit;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using OpenTelemetry.Metrics;
 using VMTO.API.Auth;
 using VMTO.API.Endpoints;
 using VMTO.API.Middleware;
 using VMTO.Application;
 using VMTO.Infrastructure;
 using VMTO.Infrastructure.Hubs;
+using VMTO.Infrastructure.Jobs;
+using VMTO.Infrastructure.Ops;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -125,6 +130,11 @@ builder.Services.AddCors(options =>
 // ProblemDetails + exception handler
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddHealthChecksUI(options =>
+{
+    options.SetEvaluationTimeInSeconds(30);
+    options.AddHealthCheckEndpoint("vmto-api", "/health/ready");
+}).AddInMemoryStorage();
 
 // Rate Limiting — 依角色不同限制
 builder.Services.AddRateLimiter(options =>
@@ -215,17 +225,63 @@ app.MapArtifactEndpoints();
 app.MapLicenseEndpoints();
 app.MapAuditEndpoints();
 app.MapDashboardEndpoints();
+app.MapOpsEndpoints();
 
 // SignalR hub
 app.MapHub<MigrationHub>("/hubs/migration");
 
 // Health checks
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => true,
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+app.MapHealthChecksUI(options => options.UIPath = "/health-ui");
+app.MapPrometheusScrapingEndpoint("/metrics");
 
 // Hangfire dashboard (dev only)
 if (app.Environment.IsDevelopment())
 {
     app.MapHangfireDashboard("/hangfire");
 }
+
+RecurringJob.AddOrUpdate<SelfHealingService>(
+    "ops-stuck-job-scan",
+    job => job.ScanAndHealAsync(CancellationToken.None),
+    "*/5 * * * *");
+RecurringJob.AddOrUpdate<SelfHealingService>(
+    "ops-failed-job-retry",
+    job => job.HandleFailedJobsAsync(CancellationToken.None),
+    "*/5 * * * *");
+RecurringJob.AddOrUpdate<ArtifactCleanupJob>(
+    "ops-artifact-cleanup",
+    job => job.RunAsync(CancellationToken.None),
+    Cron.Daily(2));
+RecurringJob.AddOrUpdate<DailyReportJob>(
+    "ops-daily-report",
+    job => job.RunAsync(CancellationToken.None),
+    Cron.Daily(0, 5));
+RecurringJob.AddOrUpdate<StorageUsageJob>(
+    "ops-storage-usage",
+    job => job.RunAsync(CancellationToken.None),
+    Cron.Hourly());
+RecurringJob.AddOrUpdate<HealthReportJob>(
+    "ops-health-report",
+    job => job.RunAsync(CancellationToken.None),
+    "*/30 * * * *");
+RecurringJob.AddOrUpdate<DatabaseBackupJob>(
+    "ops-db-backup",
+    job => job.RunAsync(CancellationToken.None),
+    Cron.Daily(1, 30));
 
 app.Run();

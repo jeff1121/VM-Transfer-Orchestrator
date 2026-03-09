@@ -105,11 +105,11 @@ onMounted(() => connectionsStore.fetchConnections())
       </thead>
       <tbody>
         <tr v-for="c in connectionsStore.connections" :key="c.id">
-          <td>{{ c.name }}</td>
-          <td><span class="type-badge">{{ c.type }}</span></td>
-          <td class="mono">{{ c.endpoint }}</td>
-          <td>{{ formatDate(c.validatedAt) }}</td>
-          <td class="actions-cell">
+          <td :data-label="t('connections.name')">{{ c.name }}</td>
+          <td :data-label="t('connections.type')"><span class="type-badge">{{ c.type }}</span></td>
+          <td :data-label="t('connections.host')" class="mono">{{ c.endpoint }}</td>
+          <td :data-label="t('connections.validated')">{{ formatDate(c.validatedAt) }}</td>
+          <td :data-label="t('common.actions')" class="actions-cell">
             <button class="btn-sm btn-secondary" :disabled="validating === c.id" @click="handleValidate(c.id)">
               {{ validating === c.id ? t('common.loading') : t('connections.testConnection') }}
             </button>
@@ -130,12 +130,12 @@ onMounted(() => connectionsStore.fetchConnections())
 .connections-page { max-width: 900px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 h2 { margin-bottom: 16px; }
-.form-panel { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 20px; }
+.form-panel { background: var(--bg-elevated); border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 20px; }
 .form-label { display: block; margin-bottom: 12px; font-weight: 500; }
 .input { display: block; width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; margin-top: 4px; font-size: 0.95rem; }
-.conn-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-.conn-table th { background: #f9fafb; text-align: left; padding: 12px; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
-.conn-table td { padding: 12px; border-bottom: 1px solid #f3f4f6; }
+.conn-table { width: 100%; border-collapse: collapse; background: var(--bg-elevated); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.conn-table th { background: var(--bg-primary); text-align: left; padding: 12px; font-weight: 600; border-bottom: 1px solid var(--border-color); }
+.conn-table td { padding: 12px; border-bottom: 1px solid var(--border-color); }
 .mono { font-family: monospace; font-size: 0.85rem; }
 .type-badge { background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
 .actions-cell { display: flex; gap: 6px; }
@@ -143,10 +143,19 @@ h2 { margin-bottom: 16px; }
 .btn-primary { background: #3b82f6; color: white; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-.btn-secondary { background: #e5e7eb; color: #374151; }
+.btn-secondary { background: var(--border-color); color: #374151; }
 .btn-danger { background: #fef2f2; color: #b91c1c; }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { background: #fef2f2; color: #b91c1c; padding: 12px; border-radius: 6px; margin-bottom: 12px; }
-.loading { color: #666; padding: 20px; }
-.empty { text-align: center; color: #999; padding: 24px; }
+.loading { color: var(--text-secondary); padding: 20px; }
+.empty { text-align: center; color: var(--text-secondary); padding: 24px; }
+@media (max-width: 768px) {
+  .header { flex-direction: column; align-items: stretch; gap: 12px; }
+  .conn-table, .conn-table tbody, .conn-table tr, .conn-table td { display: block; width: 100%; }
+  .conn-table thead { display: none; }
+  .conn-table tr { padding: 12px; border-bottom: 1px solid var(--border-color); }
+  .conn-table td { border: 0; padding: 6px 0; display: flex; justify-content: space-between; gap: 12px; }
+  .conn-table td::before { content: attr(data-label); color: var(--text-secondary); font-weight: 600; }
+  .actions-cell { justify-content: flex-end; flex-wrap: wrap; }
+}
 </style>

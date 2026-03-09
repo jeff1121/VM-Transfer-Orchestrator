@@ -44,6 +44,36 @@ services:
       interval: 5s
       retries: 5
 
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    ports: ["16686:16686", "4317:4317"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:16686"]
+      interval: 10s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:v3.4.2
+    ports: ["9090:9090"]
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      api: { condition: service_started }
+      worker: { condition: service_started }
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus: { condition: service_started }
+
   api:
     build:
       context: ..
@@ -59,16 +89,25 @@ services:
       - Storage__S3__SecretKey=${MINIO_ROOT_PASSWORD:-vmto_dev_pass}
       - Storage__S3__Bucket=${MINIO_BUCKET:-vmto-artifacts}
       - MockMode=${MOCK_MODE:-true}
+      - OpenTelemetry__ServiceName=vmto-api
+      - OpenTelemetry__Otlp__Endpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}
+      - Ops__ArtifactRetentionDays=${ARTIFACT_RETENTION_DAYS:-7}
+      - Ops__StuckJobThresholdMinutes=${STUCK_JOB_THRESHOLD_MINUTES:-20}
+      - Ops__FailedJobRetryDelayMinutes=${FAILED_JOB_RETRY_DELAY_MINUTES:-5}
+      - Ops__StorageUsageThresholdBytes=${STORAGE_USAGE_THRESHOLD_BYTES:-53687091200}
+      - Ops__BackupBucketName=${BACKUP_BUCKET_NAME:-backups}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       minio: { condition: service_healthy }
+      jaeger: { condition: service_started }
 
   worker:
     build:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.worker
+    stop_grace_period: 90s
     environment:
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
       - ConnectionStrings__Redis=redis:6379
@@ -78,11 +117,19 @@ services:
       - Storage__S3__SecretKey=${MINIO_ROOT_PASSWORD:-vmto_dev_pass}
       - Storage__S3__Bucket=${MINIO_BUCKET:-vmto-artifacts}
       - MockMode=${MOCK_MODE:-true}
+      - OpenTelemetry__ServiceName=vmto-worker
+      - OpenTelemetry__Otlp__Endpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}
+      - Ops__ArtifactRetentionDays=${ARTIFACT_RETENTION_DAYS:-7}
+      - Ops__StuckJobThresholdMinutes=${STUCK_JOB_THRESHOLD_MINUTES:-20}
+      - Ops__FailedJobRetryDelayMinutes=${FAILED_JOB_RETRY_DELAY_MINUTES:-5}
+      - Ops__StorageUsageThresholdBytes=${STORAGE_USAGE_THRESHOLD_BYTES:-53687091200}
+      - Ops__BackupBucketName=${BACKUP_BUCKET_NAME:-backups}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       minio: { condition: service_healthy }
+      jaeger: { condition: service_started }
     deploy:
       replicas: ${WORKER_REPLICAS:-2}
 
@@ -96,3 +143,4 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  grafana_data:

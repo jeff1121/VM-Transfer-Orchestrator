@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using VMTO.Application.Ports.Services;
 using VMTO.Domain.Aggregates.Artifact;
 using VMTO.Shared;
+using VMTO.Shared.Telemetry;
 
 namespace VMTO.Infrastructure.Clients;
 
@@ -37,7 +38,21 @@ public sealed partial class QemuImgService : IQemuImgService
 
     private static async Task<Result> RunQemuImgAsync(string args, IProgress<int>? progress, CancellationToken ct)
     {
-        var (exitCode, _, stderr) = await RunProcessAsync("qemu-img", args, progress, ct);
+        using var activity = ActivitySources.Default.StartActivity("qemu-img.convert", ActivityKind.Client);
+        activity?.SetTag("vmto.qemu.command", "qemu-img");
+
+        IProgress<int>? wrappedProgress = progress;
+        if (activity is not null && progress is not null)
+        {
+            wrappedProgress = new Progress<int>(percent =>
+            {
+                activity.SetTag("vmto.qemu.progress_percent", percent);
+                progress.Report(percent);
+            });
+        }
+
+        var (exitCode, _, stderr) = await RunProcessAsync("qemu-img", args, wrappedProgress, ct);
+        activity?.SetTag("vmto.qemu.exit_code", exitCode);
 
         if (exitCode != 0)
             return Result.Failure(ErrorCodes.General.ExternalCommandFailed, $"qemu-img failed (exit {exitCode}): {stderr}");
@@ -86,11 +101,71 @@ public sealed partial class QemuImgService : IQemuImgService
 
         var stderr = await stderrTask;
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(DefaultTimeout);
-        await process.WaitForExitAsync(cts.Token);
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(DefaultTimeout);
+            await process.WaitForExitAsync(cts.Token);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            ForceKillProcess(process);
+            var timeoutMessage = $"qemu-img timed out after {DefaultTimeout.TotalSeconds:F0}s";
+            var combinedStderr = string.IsNullOrWhiteSpace(stderr)
+                ? timeoutMessage
+                : $"{stderr}{Environment.NewLine}{timeoutMessage}";
+            return (-1, stdoutBuilder.ToString(), combinedStderr);
+        }
 
         return (process.ExitCode, stdoutBuilder.ToString(), stderr);
+    }
+
+    private static void ForceKillProcess(Process process)
+    {
+        if (process.HasExited)
+        {
+            return;
+        }
+
+        try
+        {
+            process.Kill(entireProcessTree: true);
+        }
+        catch (InvalidOperationException)
+        {
+            return;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // fallback to kill -9 below
+        }
+
+        if (process.HasExited || OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        try
+        {
+            using var killProcess = Process.Start(new ProcessStartInfo
+            {
+                FileName = "/bin/kill",
+                Arguments = $"-9 {process.Id}",
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+            killProcess?.WaitForExit(2000);
+        }
+        catch (InvalidOperationException)
+        {
+            // process finished between checks
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // ignore: kill binary unavailable
+        }
     }
 
     [GeneratedRegex(@"(\d+\.?\d*)")]

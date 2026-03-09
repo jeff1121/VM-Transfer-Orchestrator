@@ -150,12 +150,12 @@ onMounted(() => {
       </thead>
       <tbody>
         <tr v-for="entry in store.entries" :key="entry.id">
-          <td class="col-time">{{ formatDate(entry.createdAt) }}</td>
-          <td><span :class="['badge', actionBadgeClass(entry.action)]">{{ entry.action }}</span></td>
-          <td>{{ entry.entityType }}</td>
-          <td class="col-id" :title="entry.entityId">{{ entry.entityId.slice(0, 8) }}…</td>
-          <td>{{ entry.userId ?? '—' }}</td>
-          <td class="col-details" :title="entry.details ?? ''">{{ entry.details ? (entry.details.length > 60 ? entry.details.slice(0, 60) + '…' : entry.details) : '—' }}</td>
+          <td :data-label="t('audit.time')" class="col-time">{{ formatDate(entry.createdAt) }}</td>
+          <td :data-label="t('audit.action')"><span :class="['badge', actionBadgeClass(entry.action)]">{{ entry.action }}</span></td>
+          <td :data-label="t('audit.entityType')">{{ entry.entityType }}</td>
+          <td :data-label="t('audit.entityId')" class="col-id" :title="entry.entityId">{{ entry.entityId.slice(0, 8) }}…</td>
+          <td :data-label="t('audit.userId')">{{ entry.userId ?? '—' }}</td>
+          <td :data-label="t('audit.details')" class="col-details" :title="entry.details ?? ''">{{ entry.details ? (entry.details.length > 60 ? entry.details.slice(0, 60) + '…' : entry.details) : '—' }}</td>
         </tr>
         <tr v-if="store.entries.length === 0">
           <td colspan="6" class="empty">{{ t('common.noData') }}</td>
@@ -203,9 +203,9 @@ h2 { margin: 32px 0 12px; }
 
 /* 摘要卡片 */
 .summary-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
-.card { background: white; border-radius: 8px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.card { background: var(--bg-elevated); border-radius: 8px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
 .card-count { font-size: 1.8rem; font-weight: 700; }
-.card-label { color: #666; margin-top: 4px; font-size: 0.85rem; }
+.card-label { color: var(--text-secondary); margin-top: 4px; font-size: 0.85rem; }
 .card-recent .card-count { color: #3b82f6; }
 .card-total .card-count { color: #6366f1; }
 .card-action .card-count { color: #0891b2; }
@@ -217,16 +217,16 @@ h2 { margin: 32px 0 12px; }
 .btn { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: background 0.15s; }
 .btn-primary { background: #3b82f6; color: white; }
 .btn-primary:hover { background: #2563eb; }
-.btn-secondary { background: #e5e7eb; color: #374151; }
+.btn-secondary { background: var(--border-color); color: #374151; }
 .btn-secondary:hover { background: #d1d5db; }
 .btn-export { background: #059669; color: white; }
 .btn-export:hover { background: #047857; }
 
 /* 表格 */
-.audit-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-.audit-table th { background: #f9fafb; text-align: left; padding: 10px 12px; font-weight: 600; border-bottom: 1px solid #e5e7eb; font-size: 0.9rem; }
-.audit-table td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem; }
-.audit-table tbody tr:hover { background: #f9fafb; }
+.audit-table { width: 100%; border-collapse: collapse; background: var(--bg-elevated); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.audit-table th { background: var(--bg-primary); text-align: left; padding: 10px 12px; font-weight: 600; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+.audit-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+.audit-table tbody tr:hover { background: var(--bg-primary); }
 .col-time { white-space: nowrap; font-size: 0.85rem; color: #555; }
 .col-id { font-family: monospace; font-size: 0.85rem; }
 .col-details { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -240,17 +240,17 @@ h2 { margin: 32px 0 12px; }
 
 /* 分頁 */
 .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; flex-wrap: wrap; gap: 8px; }
-.page-info { font-size: 0.85rem; color: #666; }
+.page-info { font-size: 0.85rem; color: var(--text-secondary); }
 .page-controls { display: flex; gap: 4px; align-items: center; }
 .btn-page { background: #f3f4f6; color: #374151; padding: 4px 10px; font-size: 0.85rem; }
-.btn-page:hover:not(:disabled) { background: #e5e7eb; }
+.btn-page:hover:not(:disabled) { background: var(--border-color); }
 .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-page.active { background: #3b82f6; color: white; }
 .page-size-select { padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; margin-left: 8px; }
 
 /* 時間軸 */
 .timeline { position: relative; padding-left: 24px; }
-.timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: #e5e7eb; }
+.timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border-color); }
 .timeline-item { position: relative; padding: 8px 0; display: flex; align-items: flex-start; gap: 10px; }
 .timeline-dot { width: 12px; height: 12px; border-radius: 50%; position: absolute; left: -21px; top: 12px; border: 2px solid white; }
 .timeline-dot.badge-create { background: #22c55e; }
@@ -258,12 +258,23 @@ h2 { margin: 32px 0 12px; }
 .timeline-dot.badge-update { background: #3b82f6; }
 .timeline-dot.badge-other { background: #9ca3af; }
 .timeline-content { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem; }
-.timeline-time { color: #666; min-width: 140px; }
+.timeline-time { color: var(--text-secondary); min-width: 140px; }
 .timeline-entity { color: #374151; }
 .timeline-entity code { font-family: monospace; font-size: 0.8rem; background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
-.timeline-user { color: #999; font-size: 0.8rem; }
+.timeline-user { color: var(--text-secondary); font-size: 0.8rem; }
 
 .error { background: #fef2f2; color: #b91c1c; padding: 12px; border-radius: 6px; margin-bottom: 16px; }
-.loading { color: #666; padding: 20px; }
-.empty { text-align: center; color: #999; padding: 24px; }
+.loading { color: var(--text-secondary); padding: 20px; }
+.empty { text-align: center; color: var(--text-secondary); padding: 24px; }
+@media (max-width: 768px) {
+  .summary-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .audit-table, .audit-table tbody, .audit-table tr, .audit-table td { display: block; width: 100%; }
+  .audit-table thead { display: none; }
+  .audit-table tr { padding: 12px; border-bottom: 1px solid var(--border-color); }
+  .audit-table td { border: 0; padding: 6px 0; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+  .audit-table td::before { content: attr(data-label); color: var(--text-secondary); font-weight: 600; }
+  .col-details { max-width: none; white-space: normal; overflow: visible; text-overflow: clip; text-align: right; }
+  .timeline-time { min-width: auto; }
+}
 </style>

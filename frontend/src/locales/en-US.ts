@@ -110,6 +110,7 @@ export default {
       JobSucceeded: 'Job Succeeded',
       JobFailed: 'Job Failed',
       StepFailed: 'Step Failed',
+      SystemAnnouncement: 'System Announcement',
     },
     types: {
       Slack: 'Slack',
@@ -148,6 +149,28 @@ export default {
     title: 'Settings',
     version: 'Version',
     theme: 'Theme',
+    themeAuto: 'Auto (system)',
+    themeLight: 'Light',
+    themeDark: 'Dark',
     language: 'Language',
+  },
+  signalr: {
+    reconnecting: 'Connection lost, retrying in {seconds}s…',
+    manualRefresh: 'Reconnect failed repeatedly. Please refresh the page manually.',
+    refreshNow: 'Refresh now',
+    latencyUnknown: 'Latency: --',
+    latencyValue: 'Latency: {ms}ms',
+  },
+  notifications: {
+    title: 'Notification Center',
+    markAllRead: 'Mark all as read',
+    empty: 'No notifications',
+    offlineReady: 'Offline cache is ready. Cached data is available during outages.',
+    types: {
+      jobCompleted: 'Job Completed',
+      jobFailed: 'Job Failed',
+      stepFailed: 'Step Failed',
+      system: 'System Announcement',
+    },
   },
 }

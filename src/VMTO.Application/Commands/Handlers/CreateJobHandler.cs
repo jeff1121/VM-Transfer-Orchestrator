@@ -3,6 +3,7 @@ using VMTO.Application.Ports.Repositories;
 using VMTO.Domain.Aggregates.MigrationJob;
 using VMTO.Domain.Strategies;
 using VMTO.Shared;
+using VMTO.Shared.Telemetry;
 
 namespace VMTO.Application.Commands.Handlers;
 
@@ -44,6 +45,7 @@ public sealed class CreateJobHandler : ICommandHandler<CreateJobCommand, Guid>
         }
 
         await _jobRepository.AddAsync(job, ct);
+        VmtoMetrics.RecordJob("created", command.Strategy.ToString().ToLowerInvariant());
         return Result<Guid>.Success(job.Id);
     }
 }

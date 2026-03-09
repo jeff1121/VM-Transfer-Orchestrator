@@ -5,6 +5,7 @@ using VMTO.Application.Ports.Services;
 using VMTO.Domain.Enums;
 using VMTO.Infrastructure.Storage;
 using VMTO.Worker.Messages;
+using VMTO.Worker.Telemetry;
 
 namespace VMTO.Worker.Consumers;
 
@@ -34,6 +35,9 @@ public sealed partial class ApplyDeltaConsumer(
             LogStepNotFound(logger, msg.StepId, msg.JobId);
             return;
         }
+
+        using var telemetry = WorkerTracing.StartStepActivity(
+            nameof(ApplyDeltaConsumer), step, msg.JobId, msg.StepId, msg.CorrelationId);
 
         step.Start();
         await jobRepository.UpdateAsync(job, ct);

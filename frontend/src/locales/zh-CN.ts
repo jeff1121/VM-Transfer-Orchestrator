@@ -110,6 +110,7 @@ export default {
       JobSucceeded: '任务成功',
       JobFailed: '任务失败',
       StepFailed: '步骤失败',
+      SystemAnnouncement: '系统公告',
     },
     types: {
       Slack: 'Slack',
@@ -148,6 +149,28 @@ export default {
     title: '系统设置',
     version: '版本',
     theme: '主题',
+    themeAuto: '自动（跟随系统）',
+    themeLight: '浅色',
+    themeDark: '深色',
     language: '语言',
+  },
+  signalr: {
+    reconnecting: '连接中断，{seconds} 秒后重试…',
+    manualRefresh: '重连多次失败，请手动刷新页面。',
+    refreshNow: '立即刷新',
+    latencyUnknown: '延迟：--',
+    latencyValue: '延迟：{ms}ms',
+  },
+  notifications: {
+    title: '通知中心',
+    markAllRead: '全部标记已读',
+    empty: '目前没有通知',
+    offlineReady: '离线缓存已就绪，断网时可使用缓存数据。',
+    types: {
+      jobCompleted: '任务完成',
+      jobFailed: '任务失败',
+      stepFailed: '步骤失败',
+      system: '系统公告',
+    },
   },
 }

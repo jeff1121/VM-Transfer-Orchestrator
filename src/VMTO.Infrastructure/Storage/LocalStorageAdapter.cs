@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using VMTO.Application.Ports.Services;
 using VMTO.Shared;
+using VMTO.Shared.Telemetry;
 
 namespace VMTO.Infrastructure.Storage;
 
@@ -23,6 +24,7 @@ public sealed class LocalStorageAdapter : IStorageAdapter
 
             await using var fileStream = File.Create(filePath);
             await content.CopyToAsync(fileStream, ct);
+            VmtoMetrics.AddTransferBytes(contentLength);
             return Result.Success();
         }
         catch (Exception ex)

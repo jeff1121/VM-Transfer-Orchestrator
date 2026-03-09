@@ -85,6 +85,16 @@ public sealed partial class WebhookService : IWebhookService
         }
     }
 
+    /// <inheritdoc />
+    public async Task NotifySystemAnnouncementAsync(string eventType, object payload, CancellationToken ct = default)
+    {
+        var subscriptions = await GetMatchingSubscriptionsAsync(eventType, ct);
+        foreach (var sub in subscriptions)
+        {
+            await SendNotificationAsync(sub, eventType, payload, ct);
+        }
+    }
+
     /// <summary>查詢啟用且包含指定事件類型的訂閱</summary>
     private async Task<List<Persistence.Entities.WebhookSubscription>> GetMatchingSubscriptionsAsync(string eventType, CancellationToken ct)
     {

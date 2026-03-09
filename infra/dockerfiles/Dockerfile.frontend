@@ -7,7 +7,7 @@ RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:alpine AS runtime
 LABEL org.opencontainers.image.title="VMTO Frontend" \
-      org.opencontainers.image.version="${VERSION:-0.1.0}" \
+      org.opencontainers.image.version="${VERSION:-0.2.0}" \
       org.opencontainers.image.description="VM Transfer Orchestrator — Frontend UI" \
       org.opencontainers.image.source="https://github.com/jeff1121/VM-Transfer-Orchestrator"
 COPY --from=build /app/dist /usr/share/nginx/html

@@ -22,9 +22,16 @@ api:
   env:
     aspnetcoreEnvironment: Production
     mockMode: "false"
+  hpa:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilization: 70
+    targetMemoryUtilization: 75
 
 worker:
   replicaCount: 2
+  terminationGracePeriodSeconds: 90
   image:
     repository: vmto-worker
     tag: ""
@@ -100,3 +107,13 @@ existingSecrets:
   postgres: ""
   rabbitmq: ""
   s3: ""
+
+keda:
+  enabled: false
+  worker:
+    minReplicaCount: 1
+    maxReplicaCount: 10
+  rabbitmq:
+    queueName: export-vmdk
+    mode: QueueLength
+    value: "5"

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: VMTO API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     VM Transfer Orchestrator API — 企業級虛擬機遷移編排工具。
     支援 vSphere → Proxmox VE 遷移，提供任務管理、連線管理、產物查詢與授權管理。
@@ -23,6 +23,8 @@ tags:
     description: 遷移產物查詢
   - name: License
     description: 授權管理
+  - name: Ops
+    description: 維運與自癒管理
 
 paths:
   /api/jobs:
@@ -389,6 +391,209 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
+  /api/ops/dlq:
+    get:
+      tags: [Ops]
+      summary: 查詢死信佇列記錄
+      operationId: listDlqLogs
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: DLQ 分頁結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DlqListResponse'
+
+  /api/ops/dlq/{id}/replay:
+    post:
+      tags: [Ops]
+      summary: 重播指定 DLQ 訊息
+      operationId: replayDlqMessage
+      parameters:
+        - $ref: '#/components/parameters/DlqId'
+      responses:
+        '200':
+          description: 重播成功
+        '404':
+          description: 記錄不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/ops/chaos:
+    get:
+      tags: [Ops]
+      summary: 取得 chaos 設定
+      operationId: getChaosConfig
+      responses:
+        '200':
+          description: chaos 設定
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaosConfig'
+    post:
+      tags: [Ops]
+      summary: 更新 chaos 設定
+      operationId: updateChaosConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChaosConfig'
+      responses:
+        '200':
+          description: 更新後設定
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaosConfig'
+
+  /api/ops/health-report:
+    get:
+      tags: [Ops]
+      summary: 取得健康報告快照
+      operationId: getOpsHealthReport
+      responses:
+        '200':
+          description: 系統健康快照
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  latest:
+                    $ref: '#/components/schemas/HealthSnapshot'
+                  history:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HealthSnapshot'
+
+  /api/ops/stuck-jobs:
+    get:
+      tags: [Ops]
+      summary: 列出卡住任務
+      operationId: listStuckJobs
+      responses:
+        '200':
+          description: 卡住任務清單
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StuckJobInfo'
+                  total:
+                    type: integer
+
+  /api/ops/stuck-jobs/{id}/heal:
+    post:
+      tags: [Ops]
+      summary: 一鍵修復卡住任務
+      operationId: healStuckJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: 修復成功
+        '404':
+          description: 找不到可修復任務
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/ops/storage-usage:
+    get:
+      tags: [Ops]
+      summary: 取得儲存空間使用報告
+      operationId: getStorageUsageReport
+      responses:
+        '200':
+          description: 儲存空間快照
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  latest:
+                    $ref: '#/components/schemas/StorageUsageSnapshot'
+                  history:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StorageUsageSnapshot'
+
+  /api/ops/system-info:
+    get:
+      tags: [Ops]
+      summary: 取得系統版本與執行環境資訊
+      operationId: getSystemInfo
+      responses:
+        '200':
+          description: 系統資訊
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /api/ops/backup/config:
+    post:
+      tags: [Ops]
+      summary: 匯出系統設定備份
+      operationId: backupOpsConfig
+      responses:
+        '200':
+          description: 設定備份 JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /api/ops/restore/config:
+    post:
+      tags: [Ops]
+      summary: 匯入系統設定備份
+      operationId: restoreOpsConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpsConfigRestoreRequest'
+      responses:
+        '200':
+          description: 還原結果
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
 components:
   parameters:
     JobId:
@@ -408,6 +613,15 @@ components:
         type: string
         format: uuid
       description: 連線 ID
+
+    DlqId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: DLQ 記錄 ID
 
   schemas:
     JobStatus:
@@ -754,6 +968,122 @@ components:
           type: integer
         totalCount:
           type: integer
+
+    DlqLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        messageType:
+          type: string
+        queueName:
+          type: string
+        error:
+          type: string
+          nullable: true
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        replayedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    DlqListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DlqLog'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+
+    ChaosConfig:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        failureRate:
+          type: number
+          format: double
+        maxDelayMs:
+          type: integer
+        timeoutRate:
+          type: number
+          format: double
+
+    HealthSnapshot:
+      type: object
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        databaseReachable:
+          type: boolean
+        totalJobs:
+          type: integer
+        runningJobs:
+          type: integer
+        failedJobs:
+          type: integer
+        queuedJobs:
+          type: integer
+
+    StorageUsageSnapshot:
+      type: object
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        bucket:
+          type: string
+        totalBytes:
+          type: integer
+          format: int64
+        objectCount:
+          type: integer
+        thresholdExceeded:
+          type: boolean
+
+    StuckJobInfo:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        updatedAt:
+          type: string
+          format: date-time
+        progress:
+          type: integer
+        status:
+          type: string
+
+    OpsConfigRestoreRequest:
+      type: object
+      properties:
+        replaceExisting:
+          type: boolean
+        chaos:
+          $ref: '#/components/schemas/ChaosConfig'
+        connections:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        webhooks:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
 
     ProblemDetails:
       type: object

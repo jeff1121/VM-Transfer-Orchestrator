@@ -15,6 +15,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<Artifact> Artifacts => Set<Artifact>();
     public DbSet<License> Licenses => Set<License>();
     public DbSet<AuditLogEntry> AuditLogs => Set<AuditLogEntry>();
+    public DbSet<DeadLetterLogEntry> DeadLetterLogs => Set<DeadLetterLogEntry>();
     public DbSet<WebhookSubscription> WebhookSubscriptions => Set<WebhookSubscription>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }

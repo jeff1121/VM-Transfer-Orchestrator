@@ -27,7 +27,7 @@ cd frontend && npm run type-check               # TypeScript check
 cd infra && cp .env.example .env && docker compose up -d
 
 # Container Build with Version
-cd infra && VERSION=0.1.0 ./publish.sh
+cd infra && VERSION=0.2.0 ./publish.sh
 ```
 
 ## Version Management

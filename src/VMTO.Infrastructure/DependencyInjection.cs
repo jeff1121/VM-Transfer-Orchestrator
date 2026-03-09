@@ -5,9 +5,12 @@ using Microsoft.Extensions.DependencyInjection;
 using VMTO.Application.Ports.Repositories;
 using VMTO.Application.Ports.Services;
 using VMTO.Infrastructure.Clients;
+using VMTO.Infrastructure.Jobs;
 using VMTO.Infrastructure.Notifications;
+using VMTO.Infrastructure.Ops;
 using VMTO.Infrastructure.Persistence;
 using VMTO.Infrastructure.Persistence.Repositories;
+using VMTO.Infrastructure.Resilience;
 using VMTO.Infrastructure.Security;
 using VMTO.Infrastructure.Storage;
 using VMTO.Infrastructure.Telemetry;
@@ -18,6 +21,13 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.Configure<RetryPolicyOptions>(configuration.GetSection("Resilience:Retry"));
+        services.Configure<ChaosOptions>(configuration.GetSection("Chaos"));
+        services.Configure<OpsAutomationOptions>(configuration.GetSection("Ops"));
+        services.AddSingleton<IChaosPolicy, ChaosPolicy>();
+        services.AddSingleton<IOpsSnapshotStore, OpsSnapshotStore>();
+        services.AddSingleton<IErrorClassifier, ErrorClassifier>();
+
         // EF Core + PostgreSQL
         var connectionString = configuration.GetConnectionString("PostgreSQL")
             ?? "Host=localhost;Database=vmto;Username=vmto;Password=vmto";
@@ -45,7 +55,7 @@ public static class DependencyInjection
             });
         }
 
-        services.AddSingleton<StorageAdapterFactory>();
+        services.AddScoped<StorageAdapterFactory>();
 
         // Encryption
         services.AddDataProtection();
@@ -58,6 +68,13 @@ public static class DependencyInjection
         // Webhook 通知
         services.AddHttpClient("Webhook", c => c.Timeout = TimeSpan.FromSeconds(10));
         services.AddScoped<IWebhookService, WebhookService>();
+        services.AddScoped<CircuitBreakerNotifier>();
+        services.AddScoped<SelfHealingService>();
+        services.AddScoped<ArtifactCleanupJob>();
+        services.AddScoped<DailyReportJob>();
+        services.AddScoped<StorageUsageJob>();
+        services.AddScoped<HealthReportJob>();
+        services.AddScoped<DatabaseBackupJob>();
 
         // Hypervisor clients
         var useMocks = configuration.GetValue<bool>("UseMockClients");
