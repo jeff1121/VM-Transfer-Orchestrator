@@ -80,11 +80,11 @@ public sealed partial class ConvertDiskConsumer(
                 return;
             }
 
-            var progress = new Progress<int>(async percent =>
+            var progress = new Progress<int>(percent =>
             {
                 var scaled = 30 + (int)(percent * 0.5);
                 step.UpdateProgress(scaled);
-                await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, scaled, StepStatus.Running, ct);
+                _ = notifications.SendStepProgressAsync(msg.JobId, msg.StepId, scaled, StepStatus.Running, ct);
             });
 
             var convertResult = await qemuImg.ConvertAsync(inputPath, outputPath, targetFormat, progress, ct);

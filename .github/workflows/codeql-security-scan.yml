@@ -34,7 +34,8 @@ jobs:
         if: matrix.language == 'csharp'
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.x'
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
 
       - name: ⚙️ 設定 Node.js 環境
         if: matrix.language == 'javascript'

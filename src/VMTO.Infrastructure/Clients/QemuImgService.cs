@@ -21,13 +21,13 @@ public sealed partial class QemuImgService : IQemuImgService
             _ => "qcow2"
         };
 
-        var args = $"convert -p -O {format} \"{inputPath}\" \"{outputPath}\"";
+        string[] args = ["convert", "-p", "-O", format, inputPath, outputPath];
         return await RunQemuImgAsync(args, progress, ct);
     }
 
     public async Task<Result<string>> GetInfoAsync(string imagePath, CancellationToken ct = default)
     {
-        var args = $"info --output=json \"{imagePath}\"";
+        string[] args = ["info", "--output=json", imagePath];
         var (exitCode, stdout, stderr) = await RunProcessAsync("qemu-img", args, null, ct);
 
         if (exitCode != 0)
@@ -36,7 +36,7 @@ public sealed partial class QemuImgService : IQemuImgService
         return Result<string>.Success(stdout);
     }
 
-    private static async Task<Result> RunQemuImgAsync(string args, IProgress<int>? progress, CancellationToken ct)
+    private static async Task<Result> RunQemuImgAsync(string[] args, IProgress<int>? progress, CancellationToken ct)
     {
         using var activity = ActivitySources.Default.StartActivity("qemu-img.convert", ActivityKind.Client);
         activity?.SetTag("vmto.qemu.command", "qemu-img");
@@ -61,18 +61,22 @@ public sealed partial class QemuImgService : IQemuImgService
     }
 
     private static async Task<(int ExitCode, string Stdout, string Stderr)> RunProcessAsync(
-        string fileName, string arguments, IProgress<int>? progress, CancellationToken ct)
+        string fileName, string[] argumentList, IProgress<int>? progress, CancellationToken ct)
     {
         using var process = new Process();
-        process.StartInfo = new ProcessStartInfo
+        var startInfo = new ProcessStartInfo
         {
             FileName = fileName,
-            Arguments = arguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        foreach (var arg in argumentList)
+        {
+            startInfo.ArgumentList.Add(arg);
+        }
+        process.StartInfo = startInfo;
 
         process.Start();
 
@@ -147,15 +151,17 @@ public sealed partial class QemuImgService : IQemuImgService
 
         try
         {
-            using var killProcess = Process.Start(new ProcessStartInfo
+            var killStartInfo = new ProcessStartInfo
             {
                 FileName = "/bin/kill",
-                Arguments = $"-9 {process.Id}",
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
-            });
+            };
+            killStartInfo.ArgumentList.Add("-9");
+            killStartInfo.ArgumentList.Add(process.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            using var killProcess = Process.Start(killStartInfo);
             killProcess?.WaitForExit(2000);
         }
         catch (InvalidOperationException)
