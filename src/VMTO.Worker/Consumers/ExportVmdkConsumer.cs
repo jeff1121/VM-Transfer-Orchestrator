@@ -52,10 +52,10 @@ public sealed partial class ExportVmdkConsumer(
 
         try
         {
-            var progress = new Progress<int>(async percent =>
+            var progress = new Progress<int>(percent =>
             {
                 step.UpdateProgress(percent);
-                await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, percent, StepStatus.Running, ct);
+                _ = notifications.SendStepProgressAsync(msg.JobId, msg.StepId, percent, StepStatus.Running, ct);
             });
 
             var exportResult = await vSphereClient.ExportVmdkAsync(

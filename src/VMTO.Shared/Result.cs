@@ -19,6 +19,7 @@ public sealed class Result
 
 public sealed class Result<T>
 {
+    [System.Diagnostics.CodeAnalysis.MemberNotNullWhen(true, nameof(Value))]
     public bool IsSuccess { get; }
     public T? Value { get; }
     public string? ErrorCode { get; }

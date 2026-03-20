@@ -63,11 +63,11 @@ public sealed partial class ImportToPveConsumer(
             step.UpdateProgress(30);
             await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, 30, StepStatus.Running, ct);
 
-            var progress = new Progress<int>(async percent =>
+            var progress = new Progress<int>(percent =>
             {
                 var scaled = 30 + (int)(percent * 0.7);
                 step.UpdateProgress(scaled);
-                await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, scaled, StepStatus.Running, ct);
+                _ = notifications.SendStepProgressAsync(msg.JobId, msg.StepId, scaled, StepStatus.Running, ct);
             });
 
             var importResult = await pveClient.ImportDiskAsync(
