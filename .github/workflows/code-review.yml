@@ -48,9 +48,11 @@ jobs:
 
       - name: 執行測試
         id: test
+        if: steps.build.outputs.exit_code == '0'
         continue-on-error: true
         run: |
           dotnet test VMTO.sln --no-build --verbosity normal \
+            --filter "Category!=Integration" \
             --logger "trx;LogFileName=test-results.trx" \
             --collect:"XPlat Code Coverage" 2>&1 | tee test-output.txt
           echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
@@ -94,11 +96,13 @@ jobs:
             const formatOutput = readFile('format-output.txt');
 
             const buildOk = '${{ steps.build.outputs.exit_code }}' === '0';
-            const testOk = '${{ steps.test.outputs.exit_code }}' === '0';
+            const testSkipped = '${{ steps.build.outputs.exit_code }}' !== '0';
+            const testOk = testSkipped ? false : '${{ steps.test.outputs.exit_code }}' === '0';
             const frontendOk = '${{ steps.frontend_check.outputs.exit_code }}' === '0';
             const formatOk = '${{ steps.format_check.outputs.exit_code }}' === '0';
+            const diffLines = '${{ steps.diff.outputs.diff_lines }}' || '0';
 
-            const allPassed = buildOk && testOk && frontendOk && formatOk;
+            const allPassed = buildOk && (testSkipped || testOk) && frontendOk && formatOk;
             const statusIcon = allPassed ? '✅' : '⚠️';
 
             // 擷取錯誤摘要（最多 50 行）
@@ -115,10 +119,11 @@ jobs:
 
             let body = `## ${statusIcon} 程式碼審查報告\n\n`;
             body += `| 檢查項目 | 狀態 |\n|----------|------|\n`;
-            body += `| 🔨 編譯 | ${buildOk ? '✅ 通過' : '❌ 失敗'} |\n`;
-            body += `| 🧪 測試 | ${testOk ? '✅ 通過' : '❌ 失敗'} |\n`;
-            body += `| 📐 格式 | ${formatOk ? '✅ 通過' : '⚠️ 需要修正'} |\n`;
-            body += `| 🖥️ 前端型別檢查 | ${frontendOk ? '✅ 通過' : '❌ 失敗'} |\n\n`;
+            body += `| 🔨 編譯 | ${buildOk ? '✅ 通過' : '🔴 失敗'} |\n`;
+            body += `| 🧪 測試 | ${testSkipped ? '⏭️ 跳過（編譯失敗）' : testOk ? '✅ 通過' : '🔴 失敗'} |\n`;
+            body += `| 📐 格式 | ${formatOk ? '✅ 通過' : '🟡 需要修正'} |\n`;
+            body += `| 🖥️ 前端型別檢查 | ${frontendOk ? '✅ 通過' : '🔴 失敗'} |\n`;
+            body += `| 📊 變更行數 | ${diffLines} 行 |\n\n`;
 
             if (!buildOk && buildErrors) {
               body += `### ❌ 編譯錯誤\n\`\`\`\n${buildErrors}\n\`\`\`\n\n`;

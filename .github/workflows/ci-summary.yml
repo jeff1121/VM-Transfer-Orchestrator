@@ -1,0 +1,180 @@
+# ==============================================================================
+# VMTO — CI 整合摘要工作流程
+# 在所有 Check 完成後，於 PR 上產生綜合摘要報告
+# ==============================================================================
+name: "📋 CI 整合摘要"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: read
+  actions: read
+
+jobs:
+  ci-summary:
+    name: "產生 CI 整合摘要"
+    runs-on: ubuntu-latest
+    # 等待其他主要 CI Job 完成（最多等待 30 分鐘）
+    if: always()
+    steps:
+      - name: 等待其他 CI Workflow 完成
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const maxWaitMs = 15 * 60 * 1000; // 15 分鐘
+            const pollIntervalMs = 30 * 1000;  // 每 30 秒輪詢
+            const startTime = Date.now();
+
+            const targetWorkflows = ['🔍 Copilot Code Review', '🛡️ CodeQL 安全掃描'];
+            const sha = context.payload.pull_request?.head?.sha || context.sha;
+
+            core.info(`等待 Commit ${sha.slice(0,7)} 的 CI Workflow 完成...`);
+
+            while (Date.now() - startTime < maxWaitMs) {
+              const { data: checkSuites } = await github.rest.checks.listSuitesForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha,
+              });
+
+              const suites = checkSuites.check_suites.filter(s =>
+                s.app?.slug === 'github-actions'
+              );
+
+              const allDone = suites.every(s => s.status === 'completed');
+              if (allDone || suites.length === 0) {
+                core.info('所有 Check Suite 已完成或無等待項目，繼續產生摘要。');
+                break;
+              }
+
+              const pending = suites.filter(s => s.status !== 'completed').length;
+              core.info(`仍有 ${pending} 個 Check Suite 未完成，等待中...`);
+              await new Promise(r => setTimeout(r, pollIntervalMs));
+            }
+
+      - name: 取得 CI 檢查結果
+        id: get-checks
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.payload.pull_request?.head?.sha || context.sha;
+
+            const { data: checkRuns } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: sha,
+              per_page: 100,
+            });
+
+            // 分類各項檢查
+            const findCheck = (namePart) =>
+              checkRuns.check_runs.find(r => r.name.includes(namePart));
+
+            const getStatus = (run) => {
+              if (!run) return { icon: '⏳', text: '未執行' };
+              if (run.status !== 'completed') return { icon: '⏳', text: '執行中' };
+              if (run.conclusion === 'success') return { icon: '✅', text: '通過' };
+              if (run.conclusion === 'failure') return { icon: '🔴', text: '失敗' };
+              if (run.conclusion === 'skipped') return { icon: '⏭️', text: '跳過' };
+              return { icon: '🟡', text: run.conclusion || '未知' };
+            };
+
+            const buildRun = findCheck('程式碼審查與自動修復') || findCheck('Code Review');
+            const codeqlCsharpRun = findCheck('CodeQL 安全掃描（csharp）') || findCheck('csharp');
+            const codeqlJsRun = findCheck('CodeQL 安全掃描（javascript-typescript）') || findCheck('javascript-typescript');
+
+            const buildStatus = getStatus(buildRun);
+            const codeqlCsharpStatus = getStatus(codeqlCsharpRun);
+            const codeqlJsStatus = getStatus(codeqlJsRun);
+
+            core.setOutput('build_icon', buildStatus.icon);
+            core.setOutput('build_text', buildStatus.text);
+            core.setOutput('build_url', buildRun?.html_url || '');
+            core.setOutput('codeql_csharp_icon', codeqlCsharpStatus.icon);
+            core.setOutput('codeql_csharp_text', codeqlCsharpStatus.text);
+            core.setOutput('codeql_csharp_url', codeqlCsharpRun?.html_url || '');
+            core.setOutput('codeql_js_icon', codeqlJsStatus.icon);
+            core.setOutput('codeql_js_text', codeqlJsStatus.text);
+            core.setOutput('codeql_js_url', codeqlJsRun?.html_url || '');
+
+            const allOk = [buildStatus, codeqlCsharpStatus, codeqlJsStatus]
+              .every(s => s.text === '通過' || s.text === '跳過');
+            core.setOutput('overall_ok', allOk ? 'true' : 'false');
+
+      - name: 產生並發表整合摘要評論
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const overallOk = '${{ steps.get-checks.outputs.overall_ok }}' === 'true';
+            const overallIcon = overallOk ? '✅' : '🔴';
+            const sha = context.payload.pull_request?.head?.sha || context.sha;
+            const shortSha = sha.slice(0, 7);
+            const branch = context.payload.pull_request?.head?.ref || context.ref.replace('refs/heads/', '');
+            const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+
+            const buildIcon = '${{ steps.get-checks.outputs.build_icon }}';
+            const buildText = '${{ steps.get-checks.outputs.build_text }}';
+            const buildUrl = '${{ steps.get-checks.outputs.build_url }}';
+            const codeqlCsharpIcon = '${{ steps.get-checks.outputs.codeql_csharp_icon }}';
+            const codeqlCsharpText = '${{ steps.get-checks.outputs.codeql_csharp_text }}';
+            const codeqlCsharpUrl = '${{ steps.get-checks.outputs.codeql_csharp_url }}';
+            const codeqlJsIcon = '${{ steps.get-checks.outputs.codeql_js_icon }}';
+            const codeqlJsText = '${{ steps.get-checks.outputs.codeql_js_text }}';
+            const codeqlJsUrl = '${{ steps.get-checks.outputs.codeql_js_url }}';
+
+            const makeLink = (url, icon, text) =>
+              url ? `[${icon} ${text}](${url})` : `${icon} ${text}`;
+
+            let body = `## ${overallIcon} CI 整合摘要報告\n\n`;
+            body += `| 項目 | 內容 |\n|------|------|\n`;
+            body += `| **Commit** | \`${shortSha}\` |\n`;
+            body += `| **分支** | \`${branch}\` |\n`;
+            body += `| **時間** | ${timestamp} |\n\n`;
+
+            body += `### 各項檢查結果\n\n`;
+            body += `| 檢查項目 | 狀態 |\n|----------|------|\n`;
+            body += `| 🔨 程式碼審查（建置/測試/格式） | ${makeLink(buildUrl, buildIcon, buildText)} |\n`;
+            body += `| 🛡️ CodeQL 安全掃描（C#） | ${makeLink(codeqlCsharpUrl, codeqlCsharpIcon, codeqlCsharpText)} |\n`;
+            body += `| 🛡️ CodeQL 安全掃描（TypeScript/Vue） | ${makeLink(codeqlJsUrl, codeqlJsIcon, codeqlJsText)} |\n\n`;
+
+            body += `> 📋 完整 CodeQL 報告請至 **Security** → **Code scanning alerts** 查看\n`;
+            body += `> *由 GitHub Actions 自動產生 · \`${{ github.workflow }}\`*`;
+
+            // Upsert PR 評論
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('CI 整合摘要報告')
+            );
+
+            const commentBody = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body,
+            };
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                ...commentBody,
+                comment_id: botComment.id,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...commentBody,
+                issue_number: context.issue.number,
+              });
+            }
+
+            // 同時寫入 Step Summary
+            await core.summary
+              .addRaw(body)
+              .write();

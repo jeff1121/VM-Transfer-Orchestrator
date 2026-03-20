@@ -32,6 +32,13 @@ jobs:
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "本次 Push 無可審查的程式碼變更"
           else
+            DIFF_LEN=${#DIFF}
+            if [ "$DIFF_LEN" -gt 10000 ]; then
+              echo "truncated=true" >> $GITHUB_OUTPUT
+              echo "⚠️ Diff 超過 10000 bytes（實際 ${DIFF_LEN} bytes），已截斷"
+            else
+              echo "truncated=false" >> $GITHUB_OUTPUT
+            fi
             DIFF_TRUNCATED=$(echo "$DIFF" | head -c 10000)
             echo "skip=false" >> $GITHUB_OUTPUT
             echo "diff_b64=$(echo "$DIFF_TRUNCATED" | base64 -w 0)" >> $GITHUB_OUTPUT
@@ -42,13 +49,14 @@ jobs:
         if: steps.get-diff.outputs.skip != 'true'
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.x'
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
 
       - name: ⚙️ 設定 Node.js 環境
         if: steps.get-diff.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       # ── 4. 呼叫 OpenAI 進行 Code Review ───────────────────────────
       - name: 🤖 AI 程式碼審查分析
@@ -60,12 +68,17 @@ jobs:
         run: |
           DIFF_CONTENT=$(echo "${{ steps.get-diff.outputs.diff_b64 }}" | base64 -d)
           COMMIT_SHA="${{ github.sha }}"
+          COMMIT_SHA_SHORT="${COMMIT_SHA:0:7}"
           COMMIT_MSG=$(git log -1 --pretty=%B)
           AUTHOR=$(git log -1 --pretty=%an)
+          TRUNCATION_NOTE=""
+          if [ "${{ steps.get-diff.outputs.truncated }}" = "true" ]; then
+            TRUNCATION_NOTE=$(printf '\n\n> ⚠️ **注意**：Diff 內容超過 10000 bytes，已截斷，以下分析僅涵蓋部分變更。')
+          fi
 
           PROMPT="你是一位資深程式碼審查員，專注於 Clean Architecture、DDD、C#/.NET 8、Vue3/TypeScript 最佳實踐。
 
-          請審查以下 git diff，並以**繁體中文**回應。
+          請審查以下 git diff，並以**繁體中文**回應。${TRUNCATION_NOTE}
 
           審查重點：
           1. 程式碼品質問題（命名、可讀性、複雜度）
@@ -75,7 +88,7 @@ jobs:
           5. 缺少錯誤處理或 CancellationToken 傳遞
 
           Commit 資訊：
-          - SHA: ${COMMIT_SHA:0:7}
+          - SHA: ${COMMIT_SHA_SHORT}
           - 作者: $AUTHOR
           - 訊息: $COMMIT_MSG
 
@@ -190,8 +203,10 @@ jobs:
       - name: 🔧 .NET 建置驗證（靜態分析）
         if: steps.get-diff.outputs.skip != 'true'
         run: |
+          echo "▶️ 還原 .NET 相依套件..."
+          dotnet restore VMTO.sln
           echo "▶️ 執行 .NET 建置與靜態分析..."
-          dotnet build VMTO.sln --no-incremental -warnaserror 2>&1 | tee /tmp/build-output.txt || true
+          dotnet build VMTO.sln --no-restore --no-incremental -warnaserror 2>&1 | tee /tmp/build-output.txt || true
           echo "✅ 建置分析完成"
         continue-on-error: true
 

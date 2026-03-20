@@ -98,7 +98,6 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const glob = require('glob');
             const path = require('path');
 
             // 搜尋 SARIF 檔案
@@ -157,7 +156,7 @@ jobs:
   security-report:
     name: "安全掃描報告"
     needs: codeql-analysis
-    if: always() && github.event_name == 'pull_request'
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: 下載所有掃描結果
@@ -235,27 +234,31 @@ jobs:
             body += `> 📋 完整 SARIF 報告請至 **Security** → **Code scanning alerts** 頁面查看\n`;
             body += `> *由 GitHub Actions 自動產生 · \`${{ github.workflow }}\`*`;
 
-            // 更新或建立 PR 評論
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
+            // PR 時發表評論，非 PR 時寫入 Step Summary
+            if (context.eventName === 'pull_request') {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
 
-            const botComment = comments.find(c =>
-              c.user.type === 'Bot' && c.body.includes('CodeQL 安全掃描報告')
-            );
+              const botComment = comments.find(c =>
+                c.user.type === 'Bot' && c.body.includes('CodeQL 安全掃描報告')
+              );
 
-            const commentBody = {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body,
-            };
+              const commentBody = {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body,
+              };
 
-            if (botComment) {
-              await github.rest.issues.updateComment({ ...commentBody, comment_id: botComment.id });
+              if (botComment) {
+                await github.rest.issues.updateComment({ ...commentBody, comment_id: botComment.id });
+              } else {
+                await github.rest.issues.createComment({ ...commentBody, issue_number: context.issue.number });
+              }
             } else {
-              await github.rest.issues.createComment({ ...commentBody, issue_number: context.issue.number });
+              await core.summary.addRaw(body).write();
             }
 
             if (totalErrors > 0) {
