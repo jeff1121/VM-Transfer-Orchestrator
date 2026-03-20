@@ -24,7 +24,7 @@ jobs:
       matrix:
         language:
           - csharp
-          - javascript
+          - javascript-typescript
 
     steps:
       - name: 📥 Checkout 程式碼
@@ -38,10 +38,10 @@ jobs:
           dotnet-quality: 'preview'
 
       - name: ⚙️ 設定 Node.js 環境
-        if: matrix.language == 'javascript'
+        if: matrix.language == 'javascript-typescript'
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: 🔧 初始化 CodeQL
         uses: github/codeql-action/init@v3
@@ -64,7 +64,7 @@ jobs:
         run: dotnet build VMTO.sln
 
       - name: 🏗️ 安裝前端依賴
-        if: matrix.language == 'javascript'
+        if: matrix.language == 'javascript-typescript'
         run: cd frontend && npm ci
 
       - name: 🔍 執行 CodeQL 分析
@@ -83,7 +83,7 @@ jobs:
       - name: 📥 Checkout 程式碼
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: 🔎 取得 CodeQL 安全警報
         id: get-alerts
