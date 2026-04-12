@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@microsoft/signalr": "^8.0.0",
-    "axios": "^1.7.0",
+    "axios": "^1.15.0",
     "echarts": "^6.0.0",
     "pinia": "^3.0.0",
     "vue": "^3.5.0",
