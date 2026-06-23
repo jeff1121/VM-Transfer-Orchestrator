@@ -1,5 +1,25 @@
 using FluentAssertions;
 using VMTO.Domain.Aggregates.MigrationJob;
+<<<<<<< HEAD
+using VMTO.Domain.Events;
+using VMTO.Domain.ValueObjects;
+
+namespace VMTO.Domain.Tests;
+
+public sealed class JobStepTests
+{
+    private static JobStep CreateRunningStep()
+    {
+        var step = new JobStep(Guid.NewGuid(), "TestStep", 0, 3);
+        step.Start();
+        return step;
+    }
+
+    [Fact]
+    public void CompleteShouldRaiseStepCompletedEvent()
+    {
+        var step = CreateRunningStep();
+=======
 using VMTO.Domain.Enums;
 using VMTO.Shared;
 
@@ -104,10 +124,34 @@ public sealed class JobStepTests
     public void Complete_從Running應成功且進度為100並設定CompletedAt()
     {
         var step = CreateStepInStatus(StepStatus.Running);
+>>>>>>> origin/main
 
         var result = step.Complete();
 
         result.IsSuccess.Should().BeTrue();
+<<<<<<< HEAD
+        step.DomainEvents.Should().ContainSingle(e => e is StepCompletedEvent);
+    }
+
+    [Fact]
+    public void FailShouldRaiseStepFailedEvent()
+    {
+        var step = CreateRunningStep();
+
+        var result = step.Fail("something went wrong");
+
+        result.IsSuccess.Should().BeTrue();
+        var evt = step.DomainEvents.OfType<StepFailedEvent>().Single();
+        evt.Error.Should().Be("something went wrong");
+    }
+
+    [Fact]
+    public void RetryShouldResetProgressToZero()
+    {
+        var step = CreateRunningStep();
+        step.UpdateProgress(75);
+        step.Fail("error");
+=======
         step.Status.Should().Be(StepStatus.Succeeded);
         step.Progress.Should().Be(100);
         step.CompletedAt.Should().NotBeNull();
@@ -212,10 +256,100 @@ public sealed class JobStepTests
     {
         var step = CreateStepInStatus(StepStatus.Failed);
         step.ErrorMessage.Should().NotBeNull(); // 確認失敗時有錯誤訊息
+>>>>>>> origin/main
 
         var result = step.Retry();
 
         result.IsSuccess.Should().BeTrue();
+<<<<<<< HEAD
+        step.Progress.Should().Be(0);
+    }
+
+    [Fact]
+    public void SetLogsUriWhenRunningShouldSucceed()
+    {
+        var step = CreateRunningStep();
+
+        var result = step.SetLogsUri("https://logs.example.com/step1");
+
+        result.IsSuccess.Should().BeTrue();
+        step.LogsUri.Should().Be("https://logs.example.com/step1");
+    }
+
+    [Fact]
+    public void SetLogsUriWhenPendingShouldFail()
+    {
+        var step = new JobStep(Guid.NewGuid(), "TestStep", 0, 3);
+
+        var result = step.SetLogsUri("https://logs.example.com/step1");
+
+        result.IsSuccess.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ClearDomainEventsShouldEmptyEventList()
+    {
+        var step = CreateRunningStep();
+        step.Complete();
+        step.DomainEvents.Should().HaveCount(1);
+
+        step.ClearDomainEvents();
+
+        step.DomainEvents.Should().BeEmpty();
+    }
+}
+
+public sealed class ChecksumTests
+{
+    [Fact]
+    public void ConstructorWithEmptyAlgorithmShouldThrow()
+    {
+        var act = () => new Checksum("", "abc123");
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void ConstructorWithEmptyValueShouldThrow()
+    {
+        var act = () => new Checksum("SHA256", "");
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void ConstructorWithValidArgsShouldSucceed()
+    {
+        var checksum = new Checksum("SHA256", "abc123");
+        checksum.Algorithm.Should().Be("SHA256");
+        checksum.Value.Should().Be("abc123");
+    }
+}
+
+public sealed class StorageTargetTests
+{
+    [Fact]
+    public void ConstructorWithEmptyEndpointShouldThrow()
+    {
+        var act = () => new StorageTarget(StorageType.S3, "", "bucket");
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void ConstructorWithEmptyBucketOrPathShouldThrow()
+    {
+        var act = () => new StorageTarget(StorageType.S3, "https://s3.example.com", "");
+        act.Should().Throw<ArgumentException>();
+    }
+}
+
+public sealed class EncryptedSecretTests
+{
+    [Fact]
+    public void ToStringShouldReturnRedacted()
+    {
+        var secret = new EncryptedSecret("super-secret-cipher-text");
+        secret.ToString().Should().Be("[REDACTED]");
+    }
+=======
         step.Status.Should().Be(StepStatus.Retrying);
         step.RetryCount.Should().Be(1);
         step.ErrorMessage.Should().BeNull();
@@ -298,4 +432,5 @@ public sealed class JobStepTests
     }
 
     #endregion
+>>>>>>> origin/main
 }

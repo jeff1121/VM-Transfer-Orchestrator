@@ -1,12 +1,8 @@
+using VMTO.Application.Ports.Services;
 using VMTO.Infrastructure.Persistence;
 using VMTO.Infrastructure.Persistence.Entities;
 
 namespace VMTO.Infrastructure.Security;
-
-public interface IAuditLogService
-{
-    Task LogAsync(string action, string entityType, Guid entityId, string? userId = null, string? details = null, CancellationToken ct = default);
-}
 
 public sealed class AuditLogService : IAuditLogService
 {

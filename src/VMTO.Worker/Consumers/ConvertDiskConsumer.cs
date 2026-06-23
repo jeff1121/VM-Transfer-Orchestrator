@@ -114,7 +114,9 @@ public sealed partial class ConvertDiskConsumer(
             await jobRepository.UpdateAsync(job, ct);
             await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, 100, StepStatus.Succeeded, ct);
 
-            await context.Publish(new StepCompletedMessage(msg.JobId, msg.StepId, step.Name, msg.CorrelationId), ct);
+            await context.Publish(new StepCompletedMessage(
+                msg.JobId, msg.StepId, step.Name, msg.CorrelationId,
+                new Dictionary<string, string> { ["ConvertedOutputPath"] = outputPath }), ct);
         }
         catch (Exception ex)
         {
