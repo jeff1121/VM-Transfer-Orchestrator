@@ -37,6 +37,7 @@ public static class JobEndpoints
         JobStatus? status = null,
         CancellationToken ct = default)
     {
+        pageSize = Math.Min(pageSize, 100);
         var jobs = await repo.ListAsync(page, pageSize, status, ct);
         var total = await repo.CountAsync(status, ct);
         return Results.Ok(new { items = jobs.Select(MapToDto), total, page, pageSize });

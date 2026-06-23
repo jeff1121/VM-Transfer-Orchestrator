@@ -14,7 +14,10 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-redis_dev_pass}"]
     ports: ["6379:6379"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-redis_dev_pass}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -82,13 +85,18 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
-      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-redis_dev_pass}
       - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-vmto}:${RABBITMQ_PASS:-vmto_dev_pass}@rabbitmq:5672
       - Storage__S3__Endpoint=http://minio:9000
       - Storage__S3__AccessKey=${MINIO_ROOT_USER:-vmto}
       - Storage__S3__SecretKey=${MINIO_ROOT_PASSWORD:-vmto_dev_pass}
       - Storage__S3__Bucket=${MINIO_BUCKET:-vmto-artifacts}
       - MockMode=${MOCK_MODE:-true}
+<<<<<<< HEAD
+      - Jwt__SecretKey=${Jwt__SecretKey}
+      - Jwt__Issuer=${Jwt__Issuer:-VMTO}
+      - Jwt__Audience=${Jwt__Audience:-VMTO}
+=======
       - OpenTelemetry__ServiceName=vmto-api
       - OpenTelemetry__Otlp__Endpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}
       - Ops__ArtifactRetentionDays=${ARTIFACT_RETENTION_DAYS:-7}
@@ -96,6 +104,7 @@ services:
       - Ops__FailedJobRetryDelayMinutes=${FAILED_JOB_RETRY_DELAY_MINUTES:-5}
       - Ops__StorageUsageThresholdBytes=${STORAGE_USAGE_THRESHOLD_BYTES:-53687091200}
       - Ops__BackupBucketName=${BACKUP_BUCKET_NAME:-backups}
+>>>>>>> origin/main
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -110,7 +119,7 @@ services:
     stop_grace_period: 90s
     environment:
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
-      - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__Redis=redis:6379,password=${REDIS_PASSWORD:-redis_dev_pass}
       - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-vmto}:${RABBITMQ_PASS:-vmto_dev_pass}@rabbitmq:5672
       - Storage__S3__Endpoint=http://minio:9000
       - Storage__S3__AccessKey=${MINIO_ROOT_USER:-vmto}

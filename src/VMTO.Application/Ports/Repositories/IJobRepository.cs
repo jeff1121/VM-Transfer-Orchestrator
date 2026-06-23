@@ -10,4 +10,5 @@ public interface IJobRepository
     Task AddAsync(MigrationJob job, CancellationToken ct = default);
     Task UpdateAsync(MigrationJob job, CancellationToken ct = default);
     Task<int> CountAsync(JobStatus? status = null, CancellationToken ct = default);
+    Task<bool> HasActiveJobsForConnectionAsync(Guid connectionId, CancellationToken ct = default);
 }
