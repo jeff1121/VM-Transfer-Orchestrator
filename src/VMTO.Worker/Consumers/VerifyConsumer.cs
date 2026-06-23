@@ -4,7 +4,9 @@ using VMTO.Application.Ports.Repositories;
 using VMTO.Application.Ports.Services;
 using VMTO.Domain.Enums;
 using VMTO.Infrastructure.Storage;
+using VMTO.Shared.Telemetry;
 using VMTO.Worker.Messages;
+using VMTO.Worker.Telemetry;
 
 namespace VMTO.Worker.Consumers;
 
@@ -36,9 +38,18 @@ public sealed partial class VerifyConsumer(
             return;
         }
 
+        using var telemetry = WorkerTracing.StartStepActivity(
+            nameof(VerifyConsumer), step, msg.JobId, msg.StepId, msg.CorrelationId);
+
         step.Start();
         await jobRepository.UpdateAsync(job, ct);
         await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, 0, StepStatus.Running, ct);
+        await using var heartbeat = StepHeartbeat.Start(
+            token => notifications.SendStepProgressAsync(msg.JobId, msg.StepId, step.Progress, StepStatus.Running, token),
+            TimeSpan.FromSeconds(15),
+            logger,
+            nameof(VerifyConsumer),
+            ct);
 
         try
         {
@@ -75,6 +86,7 @@ public sealed partial class VerifyConsumer(
             if (allDone)
             {
                 job.Complete();
+                VmtoMetrics.RecordJob("succeeded", job.Strategy.ToString().ToLowerInvariant());
                 await notifications.SendJobProgressAsync(msg.JobId, 100, JobStatus.Succeeded, ct);
             }
 

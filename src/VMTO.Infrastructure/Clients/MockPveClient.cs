@@ -9,7 +9,7 @@ public sealed class MockPveClient : IPveClient
 
     public Task<Result<int>> CreateVmAsync(Guid connectionId, string vmName, int cores, int memoryMb, CancellationToken ct = default)
     {
-        return Task.FromResult(Result<int>.Success(_nextVmId++));
+        return Task.FromResult(Result<int>.Success(Interlocked.Increment(ref _nextVmId)));
     }
 
     public Task<Result> ImportDiskAsync(Guid connectionId, int vmId, string storageUri, string diskFormat, IProgress<int>? progress = null, CancellationToken ct = default)

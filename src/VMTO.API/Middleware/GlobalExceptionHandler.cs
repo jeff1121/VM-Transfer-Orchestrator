@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
+using VMTO.API.Models;
+using VMTO.Shared;
 
 namespace VMTO.API.Middleware;
 
@@ -14,16 +15,14 @@ public sealed partial class GlobalExceptionHandler(ILogger<GlobalExceptionHandle
 
         LogUnhandledException(logger, correlationId, exception);
 
-        var problemDetails = new ProblemDetails
-        {
-            Status = StatusCodes.Status500InternalServerError,
-            Title = "An unexpected error occurred",
-            Instance = httpContext.Request.Path,
-            Extensions = { ["correlationId"] = correlationId }
-        };
+        // 改用 ErrorResponse 格式
+        var error = new ErrorResponse(
+            ErrorCodes.General.InternalError,
+            "An unexpected error occurred",
+            correlationId);
 
-        httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+        httpContext.Response.StatusCode = 500;
+        await httpContext.Response.WriteAsJsonAsync(error, cancellationToken);
         return true;
     }
 

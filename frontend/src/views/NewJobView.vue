@@ -164,19 +164,19 @@ onMounted(() => connectionsStore.fetchConnections())
 h1 { margin-bottom: 20px; }
 h2 { margin-bottom: 16px; }
 .step-indicator { display: flex; gap: 12px; margin-bottom: 24px; }
-.step-dot { width: 32px; height: 32px; border-radius: 50%; background: #e5e7eb; color: #666; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.85rem; }
+.step-dot { width: 32px; height: 32px; border-radius: 50%; background: var(--border-color); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.85rem; }
 .step-dot.active { background: #3b82f6; color: white; }
 .step-dot.done { background: #22c55e; color: white; }
-.step-panel { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 16px; }
+.step-panel { background: var(--bg-elevated); border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 16px; }
 .form-label { display: block; margin-bottom: 12px; font-weight: 500; }
 .input { display: block; width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; margin-top: 4px; font-size: 0.95rem; }
 .review-table { width: 100%; border-collapse: collapse; }
-.review-table td { padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
-.review-table td:first-child { font-weight: 500; width: 40%; color: #666; }
+.review-table td { padding: 8px 0; border-bottom: 1px solid var(--border-color); }
+.review-table td:first-child { font-weight: 500; width: 40%; color: var(--text-secondary); }
 .step-actions { display: flex; gap: 12px; justify-content: flex-end; }
 .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 0.95rem; cursor: pointer; font-weight: 500; }
 .btn-primary { background: #3b82f6; color: white; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-secondary { background: #e5e7eb; color: #374151; }
+.btn-secondary { background: var(--border-color); color: #374151; }
 .error { background: #fef2f2; color: #b91c1c; padding: 12px; border-radius: 6px; margin-top: 12px; }
 </style>

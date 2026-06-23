@@ -1,7 +1,9 @@
 using Amazon.S3;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using VMTO.Application.Ports.Services;
 using VMTO.Domain.ValueObjects;
+using VMTO.Infrastructure.Resilience;
 
 namespace VMTO.Infrastructure.Storage;
 
@@ -9,10 +11,21 @@ public sealed class StorageAdapterFactory
 {
     private readonly IConfiguration _configuration;
     private readonly IAmazonS3? _s3Client;
+    private readonly CircuitBreakerNotifier _circuitBreakerNotifier;
+    private readonly IChaosPolicy _chaosPolicy;
+    private readonly RetryPolicyOptions _retryPolicyOptions;
 
-    public StorageAdapterFactory(IConfiguration configuration, IAmazonS3? s3Client = null)
+    public StorageAdapterFactory(
+        IConfiguration configuration,
+        CircuitBreakerNotifier circuitBreakerNotifier,
+        IChaosPolicy chaosPolicy,
+        IOptions<RetryPolicyOptions> retryPolicyOptions,
+        IAmazonS3? s3Client = null)
     {
         _configuration = configuration;
+        _circuitBreakerNotifier = circuitBreakerNotifier;
+        _chaosPolicy = chaosPolicy;
+        _retryPolicyOptions = retryPolicyOptions.Value;
         _s3Client = s3Client;
     }
 
@@ -32,7 +45,7 @@ public sealed class StorageAdapterFactory
             throw new InvalidOperationException("S3 client is not configured.");
 
         var bucket = _configuration["Storage:S3:BucketName"] ?? "vmto-artifacts";
-        return new S3StorageAdapter(_s3Client, bucket);
+        return new S3StorageAdapter(_s3Client, bucket, _circuitBreakerNotifier, _retryPolicyOptions, _chaosPolicy);
     }
 
     private LocalStorageAdapter CreateLocalAdapter()

@@ -4,6 +4,7 @@ using VMTO.Application.Ports.Repositories;
 using VMTO.Application.Ports.Services;
 using VMTO.Domain.Enums;
 using VMTO.Worker.Messages;
+using VMTO.Worker.Telemetry;
 
 namespace VMTO.Worker.Consumers;
 
@@ -34,9 +35,18 @@ public sealed partial class ImportToPveConsumer(
             return;
         }
 
+        using var telemetry = WorkerTracing.StartStepActivity(
+            nameof(ImportToPveConsumer), step, msg.JobId, msg.StepId, msg.CorrelationId);
+
         step.Start();
         await jobRepository.UpdateAsync(job, ct);
         await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, 0, StepStatus.Running, ct);
+        await using var heartbeat = StepHeartbeat.Start(
+            token => notifications.SendStepProgressAsync(msg.JobId, msg.StepId, step.Progress, StepStatus.Running, token),
+            TimeSpan.FromSeconds(15),
+            logger,
+            nameof(ImportToPveConsumer),
+            ct);
 
         try
         {
@@ -53,11 +63,11 @@ public sealed partial class ImportToPveConsumer(
             step.UpdateProgress(30);
             await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, 30, StepStatus.Running, ct);
 
-            var progress = new Progress<int>(async percent =>
+            var progress = new Progress<int>(percent =>
             {
                 var scaled = 30 + (int)(percent * 0.7);
                 step.UpdateProgress(scaled);
-                await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, scaled, StepStatus.Running, ct);
+                _ = notifications.SendStepProgressAsync(msg.JobId, msg.StepId, scaled, StepStatus.Running, ct);
             });
 
             var importResult = await pveClient.ImportDiskAsync(

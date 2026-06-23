@@ -1,3 +1,4 @@
+using VMTO.API.Auth;
 using VMTO.Application.DTOs;
 using VMTO.Application.Ports.Repositories;
 using VMTO.Application.Ports.Services;
@@ -11,11 +12,17 @@ public static class ConnectionEndpoints
     {
         var group = app.MapGroup("/api/connections").WithTags("Connections").RequireAuthorization();
 
+        // 讀取操作 — 任何已認證使用者皆可存取
         group.MapGet("/", ListConnections);
         group.MapGet("/{id:guid}", GetConnection);
-        group.MapPost("/", CreateConnection);
-        group.MapPost("/{id:guid}/validate", ValidateConnection);
-        group.MapDelete("/{id:guid}", DeleteConnection);
+
+        // 寫入操作 — 僅限 Admin 或 Operator，套用寫入速率限制
+        group.MapPost("/", CreateConnection).RequireAuthorization(policy =>
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
+        group.MapPost("/{id:guid}/validate", ValidateConnection).RequireAuthorization(policy =>
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
+        group.MapDelete("/{id:guid}", DeleteConnection).RequireAuthorization(policy =>
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
     }
 
     private static async Task<IResult> ListConnections(
