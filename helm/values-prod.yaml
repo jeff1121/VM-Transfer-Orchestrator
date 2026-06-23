@@ -10,6 +10,12 @@ api:
   env:
     aspnetcoreEnvironment: Production
     mockMode: "false"
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+    targetCPUUtilization: 70
+    targetMemoryUtilization: 75
 
 worker:
   replicaCount: 3

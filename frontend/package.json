@@ -1,26 +1,34 @@
 {
   "name": "vmto-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.ts,.tsx",
-    "type-check": "vue-tsc --noEmit"
+    "type-check": "vue-tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
-    "vue": "^3.5.0",
-    "vue-router": "^4.5.0",
-    "pinia": "^3.0.0",
     "@microsoft/signalr": "^8.0.0",
-    "axios": "^1.7.0"
+    "axios": "^1.15.0",
+    "echarts": "^6.0.0",
+    "pinia": "^3.0.0",
+    "vue": "^3.5.0",
+    "vue-echarts": "^8.0.1",
+    "vue-i18n": "^12.0.0-alpha.3",
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@vitejs/plugin-vue": "^5.2.0",
     "typescript": "~5.7.0",
-    "vite": "^6.2.0",
+    "vite": "^6.4.2",
+    "vite-plugin-pwa": "^0.21.1",
     "vue-tsc": "^2.2.0"
   }
 }

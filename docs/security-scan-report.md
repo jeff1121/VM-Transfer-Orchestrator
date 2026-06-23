@@ -1,9 +1,27 @@
 # VMTO 安全掃描報告
 
 > **掃描日期：** 2026-02-24  
+> **最後更新：** 2026-03-19（安全修復 PR）  
 > **掃描範圍：** 全專案原始碼（Backend / Frontend / Infrastructure / Helm）  
 > **OWASP Top 10 覆蓋範圍：** A01–A10  
-> **風險等級：** 🔴 高 × 6 | 🟡 中 × 10 | 🟢 低 × 8
+> **風險等級：** 🔴 高 × 5 | 🟡 中 × 10 | 🟢 低 × 8
+
+---
+
+## ✅ 本次 PR 已修復項目
+
+| # | 問題 | 位置 | 修復方式 |
+|---|------|------|----------|
+| F01 | **Command Injection** — `Arguments` 字串拼接 | `QemuImgService.cs` | 改用 `ProcessStartInfo.ArgumentList`，傳遞個別參數陣列 |
+| F02 | **Command Injection** — `ForceKillProcess` 中 `/bin/kill` | `QemuImgService.cs` | 改用 `ArgumentList.Add("-9")` + `ArgumentList.Add(pid)` |
+| F03 | `MockPveClient._nextVmId++` 非 Thread-Safe | `MockPveClient.cs` | 改用 `Interlocked.Increment(ref _nextVmId)` |
+| F04 | `async void` Progress 回呼（ConvertDisk） | `ConvertDiskConsumer.cs` | 改為同步 lambda + fire-and-forget (`_ = ...`) |
+| F05 | `async void` Progress 回呼（ExportVmdk） | `ExportVmdkConsumer.cs` | 改為同步 lambda + fire-and-forget (`_ = ...`) |
+| F06 | `async void` Progress 回呼（ImportToPve） | `ImportToPveConsumer.cs` | 改為同步 lambda + fire-and-forget (`_ = ...`) |
+| F07 | `Result<T>` 缺少 `[MemberNotNullWhen]` | `Result.cs` | 加入 `[MemberNotNullWhen(true, nameof(Value))]` |
+| F08 | `CorrelationId.From()` 缺少輸入驗證 | `CorrelationId.cs` | 加入 `ArgumentException.ThrowIfNullOrEmpty(value)` |
+| F09 | `EncryptedSecret.ToString()` 未遮蔽 | `EncryptedSecret.cs` | 覆寫 `ToString()` 回傳 `"[REDACTED]"` |
+| F10 | CodeQL Workflow 使用 .NET 8.x | `codeql-security-scan.yml` | 更新為 .NET 10.0.x + `dotnet-quality: 'preview'` |
 
 ---
 
@@ -17,7 +35,7 @@
 | S02 | A01 | **Broken Access Control** | `src/VMTO.Infrastructure/Hubs/MigrationHub.cs` | SignalR Hub 無 `[Authorize]`，任何人可監聽所有任務進度。 |
 | S03 | A01 | **Broken Access Control** | `src/VMTO.API/Program.cs:65` | Hangfire Dashboard 未設定 `IDashboardAuthorizationFilter`，暴露完整排程管理介面。 |
 | S04 | A03 | **Injection — Path Traversal** | `src/VMTO.Infrastructure/Storage/LocalStorageAdapter.cs:GetFullPath()` | `Path.Combine(_basePath, key)` 未驗證結果路徑。攻擊者傳入 `../../etc/passwd` 可讀寫任意檔案。 |
-| S05 | A03 | **Injection — Command Injection** | `src/VMTO.Infrastructure/Clients/QemuImgService.cs:ConvertAsync()` | `inputPath` / `outputPath` 以 string interpolation 拼接到 `ProcessStartInfo.Arguments`。含 `"` 的檔名可逃脫引號。雖 `UseShellExecute=false` 降低風險，但仍非安全做法。 |
+| S05 | A03 | **Injection — Command Injection** ✅ **已修復** | `src/VMTO.Infrastructure/Clients/QemuImgService.cs` | 已改用 `ProcessStartInfo.ArgumentList` 傳遞每個參數，消除字串拼接風險。 |
 | S06 | A07 | **Identification Failures** | 全域 | 無任何身份驗證機制（JWT、API Key、Cookie 等），無法識別操作者身份。Audit log 的 `userId` 永遠為 `null`。 |
 
 ### 🟡 中風險

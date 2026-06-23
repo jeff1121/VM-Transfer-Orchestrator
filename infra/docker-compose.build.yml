@@ -4,21 +4,21 @@ services:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.api
       args:
-        VERSION: ${VERSION:-0.1.0}
-    image: vmto-api:${TAG:-${VERSION:-0.1.0}}
+        VERSION: ${VERSION:-0.2.0}
+    image: vmto-api:${TAG:-${VERSION:-0.2.0}}
 
   worker:
     build:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.worker
       args:
-        VERSION: ${VERSION:-0.1.0}
-    image: vmto-worker:${TAG:-${VERSION:-0.1.0}}
+        VERSION: ${VERSION:-0.2.0}
+    image: vmto-worker:${TAG:-${VERSION:-0.2.0}}
 
   frontend:
     build:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.frontend
       args:
-        VERSION: ${VERSION:-0.1.0}
-    image: vmto-frontend:${TAG:-${VERSION:-0.1.0}}
+        VERSION: ${VERSION:-0.2.0}
+    image: vmto-frontend:${TAG:-${VERSION:-0.2.0}}

@@ -1,0 +1,23 @@
+{{- if .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "vmto.fullname" . }}-worker
+  labels:
+    {{- include "vmto.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  scaleTargetRef:
+    name: {{ include "vmto.fullname" . }}-worker
+  pollingInterval: 30
+  cooldownPeriod: 60
+  minReplicaCount: {{ .Values.keda.worker.minReplicaCount }}
+  maxReplicaCount: {{ .Values.keda.worker.maxReplicaCount }}
+  triggers:
+    - type: rabbitmq
+      metadata:
+        hostFromEnv: ConnectionStrings__RabbitMQ
+        queueName: {{ .Values.keda.rabbitmq.queueName | quote }}
+        mode: {{ .Values.keda.rabbitmq.mode | quote }}
+        value: {{ .Values.keda.rabbitmq.value | quote }}
+{{- end }}

@@ -6,6 +6,7 @@ using VMTO.Domain.Aggregates.Artifact;
 using VMTO.Domain.Enums;
 using VMTO.Infrastructure.Storage;
 using VMTO.Worker.Messages;
+using VMTO.Worker.Telemetry;
 
 namespace VMTO.Worker.Consumers;
 
@@ -37,9 +38,18 @@ public sealed partial class ConvertDiskConsumer(
             return;
         }
 
+        using var telemetry = WorkerTracing.StartStepActivity(
+            nameof(ConvertDiskConsumer), step, msg.JobId, msg.StepId, msg.CorrelationId);
+
         step.Start();
         await jobRepository.UpdateAsync(job, ct);
         await notifications.SendStepProgressAsync(msg.JobId, msg.StepId, 0, StepStatus.Running, ct);
+        await using var heartbeat = StepHeartbeat.Start(
+            token => notifications.SendStepProgressAsync(msg.JobId, msg.StepId, step.Progress, StepStatus.Running, token),
+            TimeSpan.FromSeconds(15),
+            logger,
+            nameof(ConvertDiskConsumer),
+            ct);
 
         var inputPath = Path.Combine(Path.GetTempPath(), $"vmto-{msg.JobId}-input");
         var outputPath = Path.Combine(Path.GetTempPath(), $"vmto-{msg.JobId}-output");
