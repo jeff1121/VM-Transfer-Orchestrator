@@ -1,22 +1,12 @@
-<<<<<<< HEAD
-using System.Text;
-=======
 using HealthChecks.UI.Client;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
->>>>>>> origin/main
 using Hangfire;
-using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
 using MassTransit;
-<<<<<<< HEAD
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-=======
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using OpenTelemetry.Metrics;
 using VMTO.API.Auth;
->>>>>>> origin/main
 using VMTO.API.Endpoints;
 using VMTO.API.Middleware;
 using VMTO.Application;
@@ -132,50 +122,9 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:5173"])
               .AllowAnyHeader()
-              .WithMethods("GET", "POST", "PUT", "DELETE")
+              .AllowAnyMethod()
               .AllowCredentials();
     });
-});
-
-// JWT Authentication
-var jwtKey = builder.Configuration["Jwt:SecretKey"];
-if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
-    throw new InvalidOperationException("Jwt:SecretKey is required and must be at least 32 characters.");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "VMTO";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "VMTO";
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-        };
-        // Allow JWT from SignalR query string
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = ctx =>
-            {
-                var accessToken = ctx.Request.Query["access_token"];
-                var path = ctx.HttpContext.Request.Path;
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
-                    ctx.Token = accessToken;
-                return Task.CompletedTask;
-            }
-        };
-    });
-
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("Operator", policy => policy.RequireRole("Admin", "Operator"));
-    options.AddPolicy("Viewer", policy => policy.RequireRole("Admin", "Operator", "Viewer"));
 });
 
 // ProblemDetails + exception handler
@@ -257,10 +206,7 @@ app.UseResponseCompression();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseExceptionHandler();
 app.UseCors();
-<<<<<<< HEAD
-=======
 app.UseRateLimiter();
->>>>>>> origin/main
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -270,12 +216,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-<<<<<<< HEAD
-// Map endpoints (all require authentication)
-=======
 // Map endpoints
 app.MapAuthEndpoints();
->>>>>>> origin/main
 app.MapJobEndpoints();
 app.MapWebhookEndpoints();
 app.MapConnectionEndpoints();
@@ -288,10 +230,6 @@ app.MapOpsEndpoints();
 // SignalR hub
 app.MapHub<MigrationHub>("/hubs/migration");
 
-<<<<<<< HEAD
-// Health checks (public)
-app.MapHealthChecks("/health");
-=======
 // Health checks
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
@@ -310,13 +248,12 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 });
 app.MapHealthChecksUI(options => options.UIPath = "/health-ui");
 app.MapPrometheusScrapingEndpoint("/metrics");
->>>>>>> origin/main
 
-// Hangfire dashboard — restricted to local requests only
-app.MapHangfireDashboard("/hangfire", new DashboardOptions
+// Hangfire dashboard (dev only)
+if (app.Environment.IsDevelopment())
 {
-    Authorization = [new LocalRequestsOnlyDashboardAuthorizationFilter()]
-});
+    app.MapHangfireDashboard("/hangfire");
+}
 
 RecurringJob.AddOrUpdate<SelfHealingService>(
     "ops-stuck-job-scan",

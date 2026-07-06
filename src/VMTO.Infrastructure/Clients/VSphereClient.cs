@@ -82,19 +82,12 @@ public sealed class VSphereClient : IVSphereClient
 
         try
         {
-<<<<<<< HEAD
-            var encodedVmId = Uri.EscapeDataString(vmId);
-            var encodedDiskKey = Uri.EscapeDataString(diskKey);
-            var response = await _http.GetAsync($"/api/vcenter/vm/{encodedVmId}/disk/{encodedDiskKey}/export", ct);
-            response.EnsureSuccessStatusCode();
-=======
             await _chaosPolicy.ApplyAsync("vsphere.export_vmdk", ct);
             return await _pipeline.ExecuteAsync(async token =>
             {
                 var response = await _http.GetAsync($"/api/vcenter/vm/{vmId}/disk/{diskKey}/export", token);
                 activity?.SetTag("http.status_code", (int)response.StatusCode);
                 response.EnsureSuccessStatusCode();
->>>>>>> origin/main
 
                 var stream = await response.Content.ReadAsStreamAsync(token);
                 return Result<Stream>.Success(stream);
@@ -128,18 +121,12 @@ public sealed class VSphereClient : IVSphereClient
 
         try
         {
-<<<<<<< HEAD
-            var encodedVmId = Uri.EscapeDataString(vmId);
-            var response = await _http.GetAsync($"/api/vcenter/vm/{encodedVmId}", ct);
-            response.EnsureSuccessStatusCode();
-=======
             await _chaosPolicy.ApplyAsync("vsphere.is_cbt_enabled", ct);
             return await _pipeline.ExecuteAsync(async token =>
             {
                 var response = await _http.GetAsync($"/api/vcenter/vm/{vmId}", token);
                 activity?.SetTag("http.status_code", (int)response.StatusCode);
                 response.EnsureSuccessStatusCode();
->>>>>>> origin/main
 
                 // Placeholder: parse CBT status from response
                 return Result<bool>.Success(false);
@@ -173,18 +160,12 @@ public sealed class VSphereClient : IVSphereClient
 
         try
         {
-<<<<<<< HEAD
-            var encodedVmId = Uri.EscapeDataString(vmId);
-            var response = await _http.PostAsync($"/api/vcenter/vm/{encodedVmId}/cbt/enable", null, ct);
-            response.EnsureSuccessStatusCode();
-=======
             await _chaosPolicy.ApplyAsync("vsphere.enable_cbt", ct);
             return await _pipeline.ExecuteAsync(async token =>
             {
                 var response = await _http.PostAsync($"/api/vcenter/vm/{vmId}/cbt/enable", null, token);
                 activity?.SetTag("http.status_code", (int)response.StatusCode);
                 response.EnsureSuccessStatusCode();
->>>>>>> origin/main
 
                 return Result.Success();
             }, ct);

@@ -6,6 +6,7 @@ using VMTO.Infrastructure;
 using VMTO.Infrastructure.Resilience;
 using VMTO.Worker;
 using VMTO.Worker.Consumers;
+using VMTO.Worker.Persistence;
 using VMTO.Worker.Sagas;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -26,6 +27,10 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<UploadArtifactConsumer>();
     x.AddConsumer<ImportToPveConsumer>();
     x.AddConsumer<VerifyConsumer>();
+    x.AddConsumer<EnableCbtConsumer>();
+    x.AddConsumer<IncrementalPullConsumer>();
+    x.AddConsumer<ApplyDeltaConsumer>();
+    x.AddConsumer<FinalSyncCutoverConsumer>();
     x.AddConsumer<DlqConsumer>();
 
     x.AddSagaStateMachine<MigrationJobSaga, MigrationJobSagaState>()
@@ -61,7 +66,7 @@ builder.Services.Configure<HostOptions>(options =>
 // Hangfire (for scheduled jobs)
 builder.Services.AddHangfire(config =>
     config.UsePostgreSqlStorage(options =>
-        options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
+        options.UseNpgsqlConnection(pgConnStr)));
 builder.Services.AddHangfireServer();
 
 builder.Services.AddHostedService<Worker>();

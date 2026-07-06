@@ -21,22 +21,14 @@ public sealed partial class QemuImgService : IQemuImgService
             _ => "qcow2"
         };
 
-<<<<<<< HEAD
-        return await RunQemuImgAsync(["convert", "-p", "-O", format, inputPath, outputPath], progress, ct);
-=======
         string[] args = ["convert", "-p", "-O", format, inputPath, outputPath];
         return await RunQemuImgAsync(args, progress, ct);
->>>>>>> origin/main
     }
 
     public async Task<Result<string>> GetInfoAsync(string imagePath, CancellationToken ct = default)
     {
-<<<<<<< HEAD
-        var (exitCode, stdout, stderr) = await RunProcessAsync("qemu-img", ["info", "--output=json", imagePath], null, ct);
-=======
         string[] args = ["info", "--output=json", imagePath];
         var (exitCode, stdout, stderr) = await RunProcessAsync("qemu-img", args, null, ct);
->>>>>>> origin/main
 
         if (exitCode != 0)
             return Result<string>.Failure(ErrorCodes.General.ExternalCommandFailed, $"qemu-img info failed: {stderr}");
@@ -44,11 +36,6 @@ public sealed partial class QemuImgService : IQemuImgService
         return Result<string>.Success(stdout);
     }
 
-<<<<<<< HEAD
-    private static async Task<Result> RunQemuImgAsync(string[] arguments, IProgress<int>? progress, CancellationToken ct)
-    {
-        var (exitCode, _, stderr) = await RunProcessAsync("qemu-img", arguments, progress, ct);
-=======
     private static async Task<Result> RunQemuImgAsync(string[] args, IProgress<int>? progress, CancellationToken ct)
     {
         using var activity = ActivitySources.Default.StartActivity("qemu-img.convert", ActivityKind.Client);
@@ -66,7 +53,6 @@ public sealed partial class QemuImgService : IQemuImgService
 
         var (exitCode, _, stderr) = await RunProcessAsync("qemu-img", args, wrappedProgress, ct);
         activity?.SetTag("vmto.qemu.exit_code", exitCode);
->>>>>>> origin/main
 
         if (exitCode != 0)
             return Result.Failure(ErrorCodes.General.ExternalCommandFailed, $"qemu-img failed (exit {exitCode}): {stderr}");
@@ -75,11 +61,7 @@ public sealed partial class QemuImgService : IQemuImgService
     }
 
     private static async Task<(int ExitCode, string Stdout, string Stderr)> RunProcessAsync(
-<<<<<<< HEAD
-        string fileName, string[] arguments, IProgress<int>? progress, CancellationToken ct)
-=======
         string fileName, string[] argumentList, IProgress<int>? progress, CancellationToken ct)
->>>>>>> origin/main
     {
         using var process = new Process();
         var startInfo = new ProcessStartInfo
@@ -90,16 +72,11 @@ public sealed partial class QemuImgService : IQemuImgService
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-<<<<<<< HEAD
-        foreach (var arg in arguments)
-            process.StartInfo.ArgumentList.Add(arg);
-=======
         foreach (var arg in argumentList)
         {
             startInfo.ArgumentList.Add(arg);
         }
         process.StartInfo = startInfo;
->>>>>>> origin/main
 
         process.Start();
 
