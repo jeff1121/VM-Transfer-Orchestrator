@@ -71,7 +71,9 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{ matrix.language }}"
-          upload: always
+          # 當 Repository 已啟用 GitHub Default Setup 時，設為 false 可避免
+          # "advanced configurations cannot be processed when the default setup is enabled" 錯誤。
+          upload: false
 
   # ── Job 2: 生成報告並 Commit ───────────────────────────────────
   security-report:

@@ -1,15 +1,18 @@
+using System.Text.RegularExpressions;
 using Serilog.Context;
 
 namespace VMTO.API.Middleware;
 
-public sealed class CorrelationIdMiddleware(RequestDelegate next)
+public sealed partial class CorrelationIdMiddleware(RequestDelegate next)
 {
     private const string HeaderName = "X-Correlation-Id";
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId = context.Request.Headers[HeaderName].FirstOrDefault()
-            ?? Guid.NewGuid().ToString("D");
+        var headerValue = context.Request.Headers[HeaderName].FirstOrDefault();
+        var correlationId = (headerValue is not null && IsValidCorrelationId(headerValue))
+            ? headerValue
+            : Guid.NewGuid().ToString("D");
 
         context.Items["CorrelationId"] = correlationId;
         context.Response.OnStarting(() =>
@@ -23,4 +26,10 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next)
             await next(context);
         }
     }
+
+    private static bool IsValidCorrelationId(string value) =>
+        !string.IsNullOrEmpty(value) && CorrelationIdPattern().IsMatch(value);
+
+    [GeneratedRegex(@"^[a-zA-Z0-9_-]{1,64}$")]
+    private static partial Regex CorrelationIdPattern();
 }

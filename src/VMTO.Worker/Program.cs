@@ -14,13 +14,8 @@ var builder = Host.CreateApplicationBuilder(args);
 // Infrastructure (EF, Redis, clients, crypto, telemetry)
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// EF Core DbContext for saga state persistence
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? builder.Configuration.GetConnectionString("PostgreSQL")
-    ?? "Host=localhost;Database=vmto;Username=vmto;******";
-
-builder.Services.AddDbContext<MigrationSagaDbContext>(options =>
-    options.UseNpgsql(connectionString));
+var pgConnStr = builder.Configuration.GetConnectionString("PostgreSQL")
+    ?? throw new InvalidOperationException("PostgreSQL connection string is required.");
 
 // MassTransit + RabbitMQ with consumers and saga
 builder.Services.AddMassTransit(x =>
@@ -42,8 +37,8 @@ builder.Services.AddMassTransit(x =>
      .EntityFrameworkRepository(r =>
      {
          r.ConcurrencyMode = ConcurrencyMode.Optimistic;
-         r.ExistingDbContext<MigrationSagaDbContext>();
-         r.UsePostgres();
+         r.AddDbContext<DbContext, MigrationSagaDbContext>((provider, options) =>
+             options.UseNpgsql(pgConnStr));
      });
 
     x.UsingRabbitMq((context, cfg) =>
@@ -71,7 +66,7 @@ builder.Services.Configure<HostOptions>(options =>
 // Hangfire (for scheduled jobs)
 builder.Services.AddHangfire(config =>
     config.UsePostgreSqlStorage(options =>
-        options.UseNpgsqlConnection(connectionString)));
+        options.UseNpgsqlConnection(pgConnStr)));
 builder.Services.AddHangfireServer();
 
 builder.Services.AddHostedService<Worker>();

@@ -51,4 +51,13 @@ public sealed class JobRepository : IJobRepository
 
         return await query.CountAsync(ct);
     }
+
+    public async Task<bool> HasActiveJobsForConnectionAsync(Guid connectionId, CancellationToken ct = default)
+    {
+        var activeStatuses = new[] { JobStatus.Queued, JobStatus.Running, JobStatus.Pausing };
+        return await _db.Jobs.AnyAsync(
+            j => (j.SourceConnectionId == connectionId || j.TargetConnectionId == connectionId)
+                 && activeStatuses.Contains(j.Status),
+            ct);
+    }
 }

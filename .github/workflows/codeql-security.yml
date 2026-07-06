@@ -89,7 +89,10 @@ jobs:
         with:
           category: "/language:${{ matrix.language }}"
           output: codeql-results
-          upload: always
+          # 當 Repository 已啟用 GitHub Default Setup 時，設為 false 可避免
+          # "advanced configurations cannot be processed when the default setup is enabled" 錯誤。
+          # SARIF 仍會儲存至 output 目錄，並由後續步驟上傳為 Artifact。
+          upload: false
 
       - name: 解析 SARIF 結果
         id: parse_sarif
