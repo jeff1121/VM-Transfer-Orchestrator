@@ -6,8 +6,8 @@ using OpenTelemetry.Trace;
 using RabbitMQ.Client;
 using Serilog;
 using Serilog.Formatting.Json;
-using VMTO.Shared.Telemetry;
 using VMTO.Infrastructure.Telemetry.HealthChecks;
+using VMTO.Shared.Telemetry;
 
 namespace VMTO.Infrastructure.Telemetry;
 
