@@ -1,4 +1,5 @@
 using MassTransit;
+using VMTO.Domain.Enums;
 using VMTO.Worker.Messages;
 
 namespace VMTO.Worker.Sagas;
@@ -37,6 +38,7 @@ public sealed class MigrationJobSaga : MassTransitStateMachine<MigrationJobSagaS
                 {
                     ctx.Saga.JobId = ctx.Message.JobId;
                     ctx.Saga.StepNames = ctx.Message.StepNames;
+                    ctx.Saga.StepTypes = ctx.Message.StepTypes ?? [];
                     ctx.Saga.StepIds = ctx.Message.StepIds;
                     ctx.Saga.CurrentStepIndex = 0;
                     ctx.Saga.SourceConnectionId = ctx.Message.SourceConnectionId;

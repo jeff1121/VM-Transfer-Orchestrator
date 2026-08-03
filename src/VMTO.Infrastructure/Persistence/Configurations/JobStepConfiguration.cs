@@ -15,6 +15,8 @@ public sealed class JobStepConfiguration : IEntityTypeConfiguration<JobStep>
         builder.Property(s => s.JobId).HasColumnName("job_id");
         builder.Property(s => s.Name).HasColumnName("name");
         builder.Property(s => s.Order).HasColumnName("order");
+        builder.Property(s => s.StepType).HasColumnName("step_type").HasConversion<string>();
+        builder.Ignore(s => s.Name);
         builder.Property(s => s.Status).HasColumnName("status").HasConversion<string>();
         builder.Property(s => s.Progress).HasColumnName("progress");
         builder.Property(s => s.RetryCount).HasColumnName("retry_count");

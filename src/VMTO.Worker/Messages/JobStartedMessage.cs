@@ -1,3 +1,5 @@
+using VMTO.Domain.Enums;
+
 namespace VMTO.Worker.Messages;
 
 public sealed record JobStartedMessage(
@@ -14,4 +16,5 @@ public sealed record JobStartedMessage(
     string TargetFormat = "qcow2",
     string VmName = "",
     int Cores = 2,
-    int MemoryMb = 2048);
+    int MemoryMb = 2048,
+    List<MigrationStepType>? StepTypes = null);
