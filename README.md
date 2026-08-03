@@ -1,4 +1,4 @@
-want to know Issues
+want to know Issues #43
 ###
 test PR resolution chart
 ###
