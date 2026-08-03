@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useConnectionsStore } from '@/stores/connections'
 import { jobsApi } from '@/api/jobs'
 import type { CreateJobRequest, ArtifactFormat } from '@/types'
 
 const router = useRouter()
+const { t } = useI18n()
 const connectionsStore = useConnectionsStore()
 
 const currentStep = ref(1)
@@ -42,7 +44,7 @@ const submit = async () => {
     const { data } = await jobsApi.create(form.value)
     router.push(`/jobs/${data.id}`)
   } catch (e) {
-    submitError.value = e instanceof Error ? e.message : '建立任務失敗'
+    submitError.value = e instanceof Error ? e.message : t('jobs.createFailed')
   } finally {
     submitting.value = false
   }
