@@ -1,12 +1,13 @@
 export type JobStatus = 'Created' | 'Queued' | 'Running' | 'Pausing' | 'Paused' | 'Resuming' | 'Cancelling' | 'Cancelled' | 'Failed' | 'Succeeded'
 export type StepStatus = 'Pending' | 'Running' | 'Retrying' | 'Failed' | 'Skipped' | 'Succeeded'
-export type ConnectionType = 'VSphere' | 'ProxmoxVE'
-export type ArtifactFormat = 'Vmdk' | 'Qcow2' | 'Raw'
+export type ConnectionType = 'VSphere' | 'ProxmoxVE' | 'HyperV'
+export type ArtifactFormat = 'Vmdk' | 'Qcow2' | 'Raw' | 'Vhdx'
+export type MigrationStrategy = 'FullCopy' | 'Incremental' | 'HyperVOffline'
 
 export interface Job {
   id: string
   correlationId: string
-  strategy: 'FullCopy' | 'Incremental'
+  strategy: MigrationStrategy
   status: JobStatus
   progress: number
   createdAt: string
@@ -59,11 +60,43 @@ export interface VmInfo {
   diskKeys: string[]
 }
 
+export interface HyperVVmDiskInfo {
+  diskKey: string
+  path: string
+  sizeBytes: number
+  format: string
+}
+
+export interface HyperVVmDetails {
+  id: string
+  name: string
+  state: string
+  cpuCount: number
+  memoryBytes: number
+  guestOs: string
+  checkpointCount: number
+  disks: HyperVVmDiskInfo[]
+}
+
+export interface PreFlightCheckItem {
+  name: string
+  isPassed: boolean
+  message: string
+  details?: string | null
+}
+
+export interface PreFlightCheckResult {
+  connectionId: string
+  vmId: string
+  isAllPassed: boolean
+  items: PreFlightCheckItem[]
+}
+
 export interface CreateJobRequest {
   sourceConnectionId: string
   targetConnectionId: string
   storageTarget: { type: string; endpoint: string; bucketOrPath: string; region?: string }
-  strategy: 'FullCopy' | 'Incremental'
+  strategy: MigrationStrategy
   options: { targetDiskFormat: ArtifactFormat; deleteSourceAfter: boolean; verifyChecksum: boolean; maxRetries: number }
 }
 

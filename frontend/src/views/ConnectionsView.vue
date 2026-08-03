@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConnectionsStore } from '@/stores/connections'
 import { connectionsApi } from '@/api/connections'
@@ -21,7 +21,8 @@ const newConn = ref<CreateConnectionRequest>({
   secret: '',
 })
 
-const connectionTypes: ConnectionType[] = ['VSphere', 'ProxmoxVE']
+const connectionTypes: ConnectionType[] = ['VSphere', 'ProxmoxVE', 'HyperV']
+const endpointHint = computed(() => t(`connections.endpointHint.${newConn.value.type}`))
 
 const resetForm = () => {
   newConn.value = { name: '', type: 'VSphere', endpoint: '', secret: '' }
@@ -85,13 +86,16 @@ onMounted(() => connectionsStore.fetchConnections())
       </label>
       <label class="form-label">{{ t('connections.type') }}
         <select v-model="newConn.type" class="input">
-          <option v-for="t in connectionTypes" :key="t" :value="t">{{ t }}</option>
+          <option v-for="type in connectionTypes" :key="type" :value="type">
+            {{ t(`connections.types.${type}`) }}
+          </option>
         </select>
       </label>
       <label class="form-label">{{ t('connections.host') }}
-        <input v-model="newConn.endpoint" class="input" placeholder="https://vcenter.example.com" />
+        <input v-model="newConn.endpoint" class="input" :placeholder="endpointHint" />
+        <span class="hint">{{ endpointHint }}</span>
       </label>
-      <label class="form-label">{{ t('webhooks.secret') }}
+      <label class="form-label">{{ t('connections.secret') }}
         <input v-model="newConn.secret" type="password" class="input" placeholder="API token / password" />
       </label>
       <div v-if="formError" class="error">{{ formError }}</div>
@@ -116,7 +120,7 @@ onMounted(() => connectionsStore.fetchConnections())
         <tbody>
           <tr v-for="c in connectionsStore.connections" :key="c.id">
             <td :data-label="t('connections.name')">{{ c.name }}</td>
-            <td :data-label="t('connections.type')"><span class="type-badge">{{ c.type }}</span></td>
+            <td :data-label="t('connections.type')"><span class="type-badge">{{ t(`connections.types.${c.type}`) }}</span></td>
             <td :data-label="t('connections.host')" class="mono">{{ c.endpoint }}</td>
             <td :data-label="t('connections.validated')">{{ formatDate(c.validatedAt) }}</td>
             <td :data-label="t('common.actions')" class="actions-cell">
@@ -143,6 +147,7 @@ onMounted(() => connectionsStore.fetchConnections())
 h2 { margin-bottom: 16px; }
 .form-panel { background: var(--bg-elevated); border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 20px; }
 .form-label { display: block; margin-bottom: 12px; font-weight: 500; }
+.hint { display: block; margin-top: 4px; color: var(--text-secondary); font-size: 0.8rem; font-weight: 400; }
 .input { display: block; width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; margin-top: 4px; font-size: 0.95rem; }
 .conn-table { width: 100%; border-collapse: collapse; background: var(--bg-elevated); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
 .conn-table th { background: var(--bg-primary); text-align: left; padding: 12px; font-weight: 600; border-bottom: 1px solid var(--border-color); }
