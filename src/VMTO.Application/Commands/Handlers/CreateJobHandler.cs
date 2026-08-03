@@ -27,6 +27,7 @@ public sealed class CreateJobHandler : ICommandHandler<CreateJobCommand, Guid>
         {
             MigrationStrategy.FullCopy => new FullCopyStrategy(),
             MigrationStrategy.Incremental => new IncrementalStrategy(),
+            MigrationStrategy.HyperVOffline => new HyperVOfflineExportStrategy(),
             _ => throw new ArgumentOutOfRangeException(nameof(command), command.Strategy, "不支援的遷移策略。")
         };
 

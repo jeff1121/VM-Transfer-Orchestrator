@@ -30,7 +30,7 @@ public sealed class MigrationJobSaga : MassTransitStateMachine<MigrationJobSagaS
         Event(() => StepFailed, x => x.CorrelateById(ctx => ctx.Message.CorrelationId));
         Event(() => JobCancelRequested, x => x.CorrelateById(ctx => ctx.Message.CorrelationId));
 
-        // Initial -> Exporting: publish ExportVmdkMessage for the first step
+        // Initial -> Exporting: publish ExportVmdkMessage or ExportVhdxMessage for the first step
         Initially(
             When(JobStarted)
                 .Then(ctx =>
@@ -50,14 +50,14 @@ public sealed class MigrationJobSaga : MassTransitStateMachine<MigrationJobSagaS
                     ctx.Saga.CreatedAt = DateTime.UtcNow;
                     ctx.Saga.UpdatedAt = DateTime.UtcNow;
                 })
-                .PublishAsync(ctx => ctx.Init<ExportVmdkMessage>(new ExportVmdkMessage(
+                .TransitionTo(Exporting)
+                .PublishAsync(ctx => ctx.Init<ExportVhdxMessage>(new ExportVhdxMessage(
                     ctx.Saga.JobId,
                     ctx.Saga.StepIds.Count > 0 ? ctx.Saga.StepIds[0] : Guid.Empty,
                     ctx.Saga.SourceConnectionId,
                     ctx.Saga.VmId,
                     ctx.Saga.DiskKey,
-                    ctx.Saga.CorrelationId)))
-                .TransitionTo(Exporting));
+                    ctx.Saga.CorrelationId))));
 
         // Exporting -> Converting on step completed
         During(Exporting,

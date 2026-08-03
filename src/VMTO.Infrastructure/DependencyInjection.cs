@@ -88,11 +88,13 @@ public static class DependencyInjection
         {
             services.AddSingleton<IVSphereClient, MockVSphereClient>();
             services.AddSingleton<IPveClient, MockPveClient>();
+            services.AddSingleton<IHyperVClient, MockHyperVClient>();
         }
         else
         {
             services.AddHttpClient<IVSphereClient, VSphereClient>();
             services.AddHttpClient<IPveClient, PveClient>();
+            services.AddHttpClient<IHyperVClient, HyperVClient>();
         }
 
         // Qemu-img

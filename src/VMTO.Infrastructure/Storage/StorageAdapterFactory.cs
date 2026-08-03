@@ -7,13 +7,21 @@ using VMTO.Infrastructure.Resilience;
 
 namespace VMTO.Infrastructure.Storage;
 
-public sealed class StorageAdapterFactory
+public class StorageAdapterFactory
 {
     private readonly IConfiguration _configuration;
     private readonly IAmazonS3? _s3Client;
     private readonly CircuitBreakerNotifier _circuitBreakerNotifier;
     private readonly IChaosPolicy _chaosPolicy;
     private readonly RetryPolicyOptions _retryPolicyOptions;
+
+    public StorageAdapterFactory()
+    {
+        _configuration = null!;
+        _circuitBreakerNotifier = null!;
+        _chaosPolicy = null!;
+        _retryPolicyOptions = null!;
+    }
 
     public StorageAdapterFactory(
         IConfiguration configuration,
@@ -29,7 +37,7 @@ public sealed class StorageAdapterFactory
         _s3Client = s3Client;
     }
 
-    public IStorageAdapter Create(StorageType storageType)
+    public virtual IStorageAdapter Create(StorageType storageType)
     {
         return storageType switch
         {
