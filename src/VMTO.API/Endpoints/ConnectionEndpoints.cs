@@ -1,7 +1,12 @@
 using VMTO.API.Auth;
+using VMTO.API.Extensions;
+using VMTO.Application.Commands;
+using VMTO.Application.Commands.Connections;
 using VMTO.Application.DTOs;
 using VMTO.Application.Ports.Repositories;
 using VMTO.Application.Ports.Services;
+using VMTO.Application.Queries;
+using VMTO.Application.Queries.Connections;
 using VMTO.Domain.Aggregates.Connection;
 
 namespace VMTO.API.Endpoints;
@@ -15,11 +20,15 @@ public static class ConnectionEndpoints
         // 讀取操作 — 任何已認證使用者皆可存取
         group.MapGet("/", ListConnections);
         group.MapGet("/{id:guid}", GetConnection);
+        group.MapGet("/{id:guid}/vms", ListVms);
+        group.MapGet("/{id:guid}/vms/{vmId}", GetHyperVVmDetails);
 
         // 寫入操作 — 僅限 Admin 或 Operator，套用寫入速率限制
         group.MapPost("/", CreateConnection).RequireAuthorization(policy =>
             policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
         group.MapPost("/{id:guid}/validate", ValidateConnection).RequireAuthorization(policy =>
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
+        group.MapPost("/{id:guid}/vms/{vmId}/preflight", RunPreFlightCheck).RequireAuthorization(policy =>
             policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
         group.MapDelete("/{id:guid}", DeleteConnection).RequireAuthorization(policy =>
             policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
@@ -58,14 +67,44 @@ public static class ConnectionEndpoints
 
     private static async Task<IResult> ValidateConnection(
         Guid id,
-        IConnectionRepository repo,
+        ICommandHandler<ValidateConnectionCommand> handler,
+        HttpContext context,
         CancellationToken ct)
     {
-        var connection = await repo.GetByIdAsync(id, ct);
-        if (connection is null) return Results.NotFound();
-        connection.MarkValidated();
-        await repo.UpdateAsync(connection, ct);
-        return Results.Ok(MapToDto(connection));
+        var result = await handler.HandleAsync(new ValidateConnectionCommand(id), ct);
+        return result.ToHttpResult(context);
+    }
+
+    private static async Task<IResult> ListVms(
+        Guid id,
+        IQueryHandler<ListVmsQuery, IReadOnlyList<VmInfoDto>> handler,
+        HttpContext context,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new ListVmsQuery(id), ct);
+        return result.ToHttpResult(context);
+    }
+
+    private static async Task<IResult> GetHyperVVmDetails(
+        Guid id,
+        string vmId,
+        IQueryHandler<GetHyperVVmDetailsQuery, HyperVVmDetailsDto> handler,
+        HttpContext context,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new GetHyperVVmDetailsQuery(id, vmId), ct);
+        return result.ToHttpResult(context);
+    }
+
+    private static async Task<IResult> RunPreFlightCheck(
+        Guid id,
+        string vmId,
+        ICommandHandler<RunPreFlightCheckCommand, PreFlightCheckResultDto> handler,
+        HttpContext context,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new RunPreFlightCheckCommand(id, vmId), ct);
+        return result.ToHttpResult(context);
     }
 
     private static async Task<IResult> DeleteConnection(Guid id, IConnectionRepository repo, IJobRepository jobRepo, CancellationToken ct)

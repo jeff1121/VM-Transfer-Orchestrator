@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandHandler<CreateConnectionCommand, Guid>, CreateConnectionHandler>();
         services.AddScoped<ICommandHandler<ValidateConnectionCommand>, ValidateConnectionHandler>();
         services.AddScoped<ICommandHandler<DeleteConnectionCommand>, DeleteConnectionHandler>();
+        services.AddScoped<ICommandHandler<RunPreFlightCheckCommand, PreFlightCheckResultDto>, RunPreFlightCheckHandler>();
 
         // 註冊 Query Handlers
         services.AddScoped<IQueryHandler<GetJobQuery, JobDto>, GetJobHandler>();
@@ -35,6 +36,8 @@ public static class DependencyInjection
         services.AddScoped<IQueryHandler<GetJobProgressQuery, JobProgressDto>, GetJobProgressHandler>();
         services.AddScoped<IQueryHandler<GetConnectionsQuery, IReadOnlyList<ConnectionDto>>, GetConnectionsHandler>();
         services.AddScoped<IQueryHandler<GetArtifactsQuery, IReadOnlyList<ArtifactDto>>, GetArtifactsHandler>();
+        services.AddScoped<IQueryHandler<GetHyperVVmDetailsQuery, HyperVVmDetailsDto>, GetHyperVVmDetailsHandler>();
+        services.AddScoped<IQueryHandler<ListVmsQuery, IReadOnlyList<VmInfoDto>>, ListVmsHandler>();
 
         return services;
     }

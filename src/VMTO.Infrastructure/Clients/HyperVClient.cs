@@ -112,6 +112,66 @@ public sealed class HyperVClient : IHyperVClient
         }
     }
 
+    public async Task<Result<HyperVVmDetailsDto>> GetVmDetailsAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+    {
+        using var activity = ActivitySources.Default.StartActivity("hyperv.get_vm_details", ActivityKind.Client);
+        activity?.SetTag("vmto.connection.id", connectionId.ToString());
+        activity?.SetTag("vmto.vm.id", vmId);
+
+        try
+        {
+            await _chaosPolicy.ApplyAsync("hyperv.get_vm_details", ct);
+            return await _pipeline.ExecuteAsync(async token =>
+            {
+                var response = await _http.GetAsync($"/api/hyperv/vm/{vmId}/details", token);
+                activity?.SetTag("http.status_code", (int)response.StatusCode);
+                response.EnsureSuccessStatusCode();
+
+                var details = await response.Content.ReadFromJsonAsync<HyperVVmDetailsDto>(token);
+                if (details is null)
+                    return Result<HyperVVmDetailsDto>.Failure(ErrorCodes.General.InternalError, "Failed to parse VM details.");
+
+                return Result<HyperVVmDetailsDto>.Success(details);
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            return Result<HyperVVmDetailsDto>.Failure(
+                ErrorCodes.General.InternalError, $"Failed to get Hyper-V VM details: {ex.Message}");
+        }
+    }
+
+    public async Task<Result<PreFlightCheckResultDto>> RunPreFlightCheckAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+    {
+        using var activity = ActivitySources.Default.StartActivity("hyperv.run_preflight", ActivityKind.Client);
+        activity?.SetTag("vmto.connection.id", connectionId.ToString());
+        activity?.SetTag("vmto.vm.id", vmId);
+
+        try
+        {
+            await _chaosPolicy.ApplyAsync("hyperv.run_preflight", ct);
+            return await _pipeline.ExecuteAsync(async token =>
+            {
+                var response = await _http.PostAsync($"/api/hyperv/vm/{vmId}/preflight", null, token);
+                activity?.SetTag("http.status_code", (int)response.StatusCode);
+                response.EnsureSuccessStatusCode();
+
+                var result = await response.Content.ReadFromJsonAsync<PreFlightCheckResultDto>(token);
+                if (result is null)
+                    return Result<PreFlightCheckResultDto>.Failure(ErrorCodes.General.InternalError, "Failed to parse preflight check result.");
+
+                return Result<PreFlightCheckResultDto>.Success(result);
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            return Result<PreFlightCheckResultDto>.Failure(
+                ErrorCodes.General.InternalError, $"Failed to run preflight check: {ex.Message}");
+        }
+    }
+
     public async Task<Result<Stream>> ExportVhdxAsync(Guid connectionId, string vmId, string diskKey, IProgress<int>? progress = null, CancellationToken ct = default)
     {
         using var activity = ActivitySources.Default.StartActivity("hyperv.export_vhdx", ActivityKind.Client);

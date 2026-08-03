@@ -35,4 +35,26 @@ public sealed class MockHyperVClientTests
         result.Value.Should().NotBeNull();
         result.Value!.Length.Should().Be(1024);
     }
+
+    [Fact]
+    public async Task GetVmDetailsAsyncShouldReturnDetails()
+    {
+        var result = await _client.GetVmDetailsAsync(Guid.NewGuid(), "hv-vm-01");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.Id.Should().Be("hv-vm-01");
+        result.Value.State.Should().Be("Off");
+    }
+
+    [Fact]
+    public async Task RunPreFlightCheckAsyncShouldReturnAllPassed()
+    {
+        var result = await _client.RunPreFlightCheckAsync(Guid.NewGuid(), "hv-vm-01");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.IsAllPassed.Should().BeTrue();
+        result.Value.Items.Should().HaveCount(4);
+    }
 }
