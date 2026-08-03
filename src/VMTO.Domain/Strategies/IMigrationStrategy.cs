@@ -1,6 +1,8 @@
+using VMTO.Domain.ValueObjects;
+
 namespace VMTO.Domain.Strategies;
 
 public interface IMigrationStrategy
 {
-    IReadOnlyList<string> GetStepNames();
+    MigrationPlan GetPlan();
 }

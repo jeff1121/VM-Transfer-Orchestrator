@@ -1,4 +1,5 @@
 using MassTransit;
+using VMTO.Domain.Enums;
 
 namespace VMTO.Worker.Sagas;
 
@@ -9,6 +10,7 @@ public sealed class MigrationJobSagaState : SagaStateMachineInstance
     public Guid JobId { get; set; }
     public int CurrentStepIndex { get; set; }
     public List<string> StepNames { get; set; } = [];
+    public List<MigrationStepType> StepTypes { get; set; } = [];
     public List<Guid> StepIds { get; set; } = [];
     public Guid SourceConnectionId { get; set; }
     public Guid TargetConnectionId { get; set; }

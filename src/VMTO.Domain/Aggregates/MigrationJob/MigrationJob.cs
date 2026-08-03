@@ -120,6 +120,13 @@ public sealed class MigrationJob
         return Transition(Status, JobStatus.Succeeded);
     }
 
+    public void AddStep(MigrationStepType stepType, int order)
+    {
+        var step = new JobStep(Id, stepType, order, Options.MaxRetries);
+        _steps.Add(step);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void AddStep(string name, int order)
     {
         var step = new JobStep(Id, name, order, Options.MaxRetries);

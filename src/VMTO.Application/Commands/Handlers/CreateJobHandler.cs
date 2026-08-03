@@ -38,11 +38,11 @@ public sealed class CreateJobHandler : ICommandHandler<CreateJobCommand, Guid>
             command.Strategy,
             command.Options);
 
-        // 依策略定義的步驟名稱逐一新增步驟
-        var stepNames = strategy.GetStepNames();
-        for (var i = 0; i < stepNames.Count; i++)
+        // 依策略定義的步驟 Plan 逐一新增步驟
+        var plan = strategy.GetPlan();
+        for (var i = 0; i < plan.Steps.Count; i++)
         {
-            job.AddStep(stepNames[i], i + 1);
+            job.AddStep(plan.Steps[i], i + 1);
         }
 
         await _jobRepository.AddAsync(job, ct);
