@@ -13,20 +13,17 @@ namespace VMTO.Application.Commands.Handlers;
 public sealed class ValidateConnectionHandler : ICommandHandler<ValidateConnectionCommand>
 {
     private readonly IConnectionRepository _connectionRepository;
-    private readonly IVSphereClient _vSphereClient;
-    private readonly IPveClient _pveClient;
-    private readonly IHyperVClient _hyperVClient;
+    private readonly ISourcePlatformProviderFactory _sourceFactory;
+    private readonly ITargetPlatformProviderFactory _targetFactory;
 
     public ValidateConnectionHandler(
         IConnectionRepository connectionRepository,
-        IVSphereClient vSphereClient,
-        IPveClient pveClient,
-        IHyperVClient hyperVClient)
+        ISourcePlatformProviderFactory sourceFactory,
+        ITargetPlatformProviderFactory targetFactory)
     {
         _connectionRepository = connectionRepository;
-        _vSphereClient = vSphereClient;
-        _pveClient = pveClient;
-        _hyperVClient = hyperVClient;
+        _sourceFactory = sourceFactory;
+        _targetFactory = targetFactory;
     }
 
     public async Task<Result> HandleAsync(ValidateConnectionCommand command, CancellationToken ct = default)
@@ -35,14 +32,26 @@ public sealed class ValidateConnectionHandler : ICommandHandler<ValidateConnecti
         if (connection is null)
             return Result.Failure(ErrorCodes.Connection.NotFound, $"找不到連線 {command.ConnectionId}。");
 
-        // 根據連線類型使用對應用戶端進行驗證
-        Result validationResult = connection.Type switch
+        Result validationResult;
+        try
         {
-            ConnectionType.VSphere => await ValidateVSphereAsync(connection.Id, ct),
-            ConnectionType.ProxmoxVE => await ValidatePveAsync(connection.Id, ct),
-            ConnectionType.HyperV => await ValidateHyperVAsync(connection.Id, ct),
-            _ => Result.Failure(ErrorCodes.Connection.ValidationFailed, "不支援的連線類型。")
-        };
+            if (connection.Type == ConnectionType.ProxmoxVE)
+            {
+                var targetProvider = _targetFactory.GetProvider(connection.Type);
+                var createResult = await targetProvider.CreateVmAsync(connection.Id, "__vmto_conn_test", 1, 512, ct);
+                validationResult = createResult.IsSuccess ? Result.Success() : Result.Failure(createResult.ErrorCode!, createResult.ErrorMessage!);
+            }
+            else
+            {
+                var sourceProvider = _sourceFactory.GetProvider(connection.Type);
+                var listResult = await sourceProvider.ListVmsAsync(connection.Id, ct);
+                validationResult = listResult.IsSuccess ? Result.Success() : Result.Failure(listResult.ErrorCode!, listResult.ErrorMessage!);
+            }
+        }
+        catch (NotSupportedException ex)
+        {
+            validationResult = Result.Failure(ErrorCodes.Connection.ValidationFailed, ex.Message);
+        }
 
         if (!validationResult.IsSuccess)
             return Result.Failure(ErrorCodes.Connection.ValidationFailed, validationResult.ErrorMessage ?? "連線驗證失敗。");
@@ -50,24 +59,5 @@ public sealed class ValidateConnectionHandler : ICommandHandler<ValidateConnecti
         connection.MarkValidated();
         await _connectionRepository.UpdateAsync(connection, ct);
         return Result.Success();
-    }
-
-    private async Task<Result> ValidateVSphereAsync(Guid connectionId, CancellationToken ct)
-    {
-        var result = await _vSphereClient.ListVmsAsync(connectionId, ct);
-        return result.IsSuccess ? Result.Success() : Result.Failure(result.ErrorCode!, result.ErrorMessage!);
-    }
-
-    private async Task<Result> ValidatePveAsync(Guid connectionId, CancellationToken ct)
-    {
-        // 嘗試建立一個測試用 VM 來驗證連線（使用最小配置）
-        var result = await _pveClient.CreateVmAsync(connectionId, "__vmto_conn_test", 1, 512, ct);
-        return result.IsSuccess ? Result.Success() : Result.Failure(result.ErrorCode!, result.ErrorMessage!);
-    }
-
-    private async Task<Result> ValidateHyperVAsync(Guid connectionId, CancellationToken ct)
-    {
-        var result = await _hyperVClient.ListVmsAsync(connectionId, ct);
-        return result.IsSuccess ? Result.Success() : Result.Failure(result.ErrorCode!, result.ErrorMessage!);
     }
 }

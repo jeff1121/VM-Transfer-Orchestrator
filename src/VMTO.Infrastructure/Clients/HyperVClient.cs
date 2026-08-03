@@ -211,4 +211,9 @@ public sealed class HyperVClient : IHyperVClient
                 ErrorCodes.General.InternalError, $"Failed to export VHDX: {ex.Message}");
         }
     }
+
+    public Task<Result<Stream>> ExportDiskAsync(Guid connectionId, string vmId, string diskKey, IProgress<int>? progress = null, CancellationToken ct = default)
+    {
+        return ExportVhdxAsync(connectionId, vmId, diskKey, progress, ct);
+    }
 }

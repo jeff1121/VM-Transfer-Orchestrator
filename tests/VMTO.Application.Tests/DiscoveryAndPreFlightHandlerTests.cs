@@ -54,16 +54,20 @@ public sealed class DiscoveryAndPreFlightHandlerTests
     }
 
     [Fact]
-    public async Task ListVmsHandler_ForHyperVConnection_CallsHyperVClient()
+    public async Task ListVmsHandler_ForHyperVConnection_CallsProviderFactory()
     {
         var connection = new Connection("hyperv-prod", ConnectionType.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
 
         IReadOnlyList<VmInfoDto> expectedVms = [new VmInfoDto("hv-vm-01", "win-server-01", 4, 8192, ["disk-0"])];
-        _hyperVClient.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
+        var sourceFactory = Substitute.For<ISourcePlatformProviderFactory>();
+        var sourcePort = Substitute.For<ISourcePlatformPort>();
+
+        sourceFactory.GetProvider(ConnectionType.HyperV).Returns(sourcePort);
+        sourcePort.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
             .Returns(Result<IReadOnlyList<VmInfoDto>>.Success(expectedVms));
 
-        var handler = new ListVmsHandler(_connectionRepository, _vSphereClient, _hyperVClient);
+        var handler = new ListVmsHandler(_connectionRepository, sourceFactory);
         var result = await handler.HandleAsync(new ListVmsQuery(connection.Id));
 
         result.IsSuccess.Should().BeTrue();

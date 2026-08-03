@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using VMTO.Application.Ports.Repositories;
 using VMTO.Application.Ports.Services;
 using VMTO.Infrastructure.Clients;
+using VMTO.Infrastructure.Factories;
 using VMTO.Infrastructure.Jobs;
 using VMTO.Infrastructure.Notifications;
 using VMTO.Infrastructure.Ops;
@@ -82,7 +83,7 @@ public static class DependencyInjection
         services.AddScoped<HealthReportJob>();
         services.AddScoped<DatabaseBackupJob>();
 
-        // Hypervisor clients
+        // Hypervisor clients & Provider Factories
         var useMocks = configuration.GetValue<bool>("UseMockClients");
         if (useMocks)
         {
@@ -96,6 +97,9 @@ public static class DependencyInjection
             services.AddHttpClient<IPveClient, PveClient>();
             services.AddHttpClient<IHyperVClient, HyperVClient>();
         }
+
+        services.AddScoped<ISourcePlatformProviderFactory, SourcePlatformProviderFactory>();
+        services.AddScoped<ITargetPlatformProviderFactory, TargetPlatformProviderFactory>();
 
         // Qemu-img
         services.AddSingleton<IQemuImgService, QemuImgService>();
