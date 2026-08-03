@@ -73,4 +73,21 @@ public sealed class CreateJobHandlerTests
         savedJob.Steps.Select(s => s.Name).Should()
             .Equal("EnableCbt", "IncrementalPull", "ApplyDelta", "FinalSyncCutover", "Verify");
     }
+
+    [Fact]
+    public async Task HandleAsync_正確建立HyperVOffline策略的步驟()
+    {
+        MigrationJob? savedJob = null;
+        await _jobRepository.AddAsync(Arg.Do<MigrationJob>(j => savedJob = j), Arg.Any<CancellationToken>());
+
+        var command = new CreateJobCommand(
+            Guid.NewGuid(), Guid.NewGuid(), DefaultStorage, MigrationStrategy.HyperVOffline, DefaultOptions);
+
+        await _handler.HandleAsync(command);
+
+        savedJob.Should().NotBeNull();
+        savedJob!.Steps.Should().HaveCount(5);
+        savedJob.Steps.Select(s => s.Name).Should()
+            .Equal("ExportVhdx", "ConvertDisk", "UploadArtifact", "ImportToPve", "Verify");
+    }
 }

@@ -4,5 +4,6 @@ public enum ArtifactFormat
 {
     Vmdk,
     Qcow2,
-    Raw
+    Raw,
+    Vhdx
 }

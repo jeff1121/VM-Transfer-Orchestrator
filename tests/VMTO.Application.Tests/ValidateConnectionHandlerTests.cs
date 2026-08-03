@@ -19,11 +19,12 @@ public sealed class ValidateConnectionHandlerTests
     private readonly IConnectionRepository _connectionRepository = Substitute.For<IConnectionRepository>();
     private readonly IVSphereClient _vSphereClient = Substitute.For<IVSphereClient>();
     private readonly IPveClient _pveClient = Substitute.For<IPveClient>();
+    private readonly IHyperVClient _hyperVClient = Substitute.For<IHyperVClient>();
     private readonly ValidateConnectionHandler _handler;
 
     public ValidateConnectionHandlerTests()
     {
-        _handler = new ValidateConnectionHandler(_connectionRepository, _vSphereClient, _pveClient);
+        _handler = new ValidateConnectionHandler(_connectionRepository, _vSphereClient, _pveClient, _hyperVClient);
     }
 
     [Fact]
@@ -66,5 +67,20 @@ public sealed class ValidateConnectionHandlerTests
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be(ErrorCodes.Connection.ValidationFailed);
         connection.ValidatedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task HandleAsync_HyperV驗證成功時標記已驗證()
+    {
+        var connection = new Connection("hyperv-prod", ConnectionType.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
+        _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
+        _hyperVClient.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<DTOs.VmInfoDto>>.Success(Array.Empty<DTOs.VmInfoDto>()));
+
+        var result = await _handler.HandleAsync(new ValidateConnectionCommand(connection.Id));
+
+        result.IsSuccess.Should().BeTrue();
+        connection.ValidatedAt.Should().NotBeNull();
+        await _connectionRepository.Received(1).UpdateAsync(connection, Arg.Any<CancellationToken>());
     }
 }

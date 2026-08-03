@@ -52,4 +52,26 @@ public sealed class StrategyTests
     }
 
     #endregion
+
+    #region HyperVOfflineExportStrategy 測試
+
+    [Fact]
+    public void HyperVOfflineExportStrategy_GetStepNames_應回傳正確的步驟清單()
+    {
+        var strategy = new HyperVOfflineExportStrategy();
+
+        var steps = strategy.GetStepNames();
+
+        steps.Should().Equal("ExportVhdx", "ConvertDisk", "UploadArtifact", "ImportToPve", "Verify");
+    }
+
+    [Fact]
+    public void HyperVOfflineExportStrategy_應實作IMigrationStrategy()
+    {
+        var strategy = new HyperVOfflineExportStrategy();
+
+        strategy.Should().BeAssignableTo<IMigrationStrategy>();
+    }
+
+    #endregion
 }

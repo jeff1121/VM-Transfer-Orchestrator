@@ -15,15 +15,18 @@ public sealed class ValidateConnectionHandler : ICommandHandler<ValidateConnecti
     private readonly IConnectionRepository _connectionRepository;
     private readonly IVSphereClient _vSphereClient;
     private readonly IPveClient _pveClient;
+    private readonly IHyperVClient _hyperVClient;
 
     public ValidateConnectionHandler(
         IConnectionRepository connectionRepository,
         IVSphereClient vSphereClient,
-        IPveClient pveClient)
+        IPveClient pveClient,
+        IHyperVClient hyperVClient)
     {
         _connectionRepository = connectionRepository;
         _vSphereClient = vSphereClient;
         _pveClient = pveClient;
+        _hyperVClient = hyperVClient;
     }
 
     public async Task<Result> HandleAsync(ValidateConnectionCommand command, CancellationToken ct = default)
@@ -37,6 +40,7 @@ public sealed class ValidateConnectionHandler : ICommandHandler<ValidateConnecti
         {
             ConnectionType.VSphere => await ValidateVSphereAsync(connection.Id, ct),
             ConnectionType.ProxmoxVE => await ValidatePveAsync(connection.Id, ct),
+            ConnectionType.HyperV => await ValidateHyperVAsync(connection.Id, ct),
             _ => Result.Failure(ErrorCodes.Connection.ValidationFailed, "不支援的連線類型。")
         };
 
@@ -58,6 +62,12 @@ public sealed class ValidateConnectionHandler : ICommandHandler<ValidateConnecti
     {
         // 嘗試建立一個測試用 VM 來驗證連線（使用最小配置）
         var result = await _pveClient.CreateVmAsync(connectionId, "__vmto_conn_test", 1, 512, ct);
+        return result.IsSuccess ? Result.Success() : Result.Failure(result.ErrorCode!, result.ErrorMessage!);
+    }
+
+    private async Task<Result> ValidateHyperVAsync(Guid connectionId, CancellationToken ct)
+    {
+        var result = await _hyperVClient.ListVmsAsync(connectionId, ct);
         return result.IsSuccess ? Result.Success() : Result.Failure(result.ErrorCode!, result.ErrorMessage!);
     }
 }
