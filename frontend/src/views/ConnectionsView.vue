@@ -11,6 +11,8 @@ const showForm = ref(false)
 const validating = ref<string | null>(null)
 const deleting = ref<string | null>(null)
 const formError = ref<string | null>(null)
+const validateError = ref<string | null>(null)
+const deleteError = ref<string | null>(null)
 
 const newConn = ref<CreateConnectionRequest>({
   name: '',
@@ -39,11 +41,12 @@ const handleCreate = async () => {
 
 const handleValidate = async (id: string) => {
   validating.value = id
+  validateError.value = null
   try {
     await connectionsApi.validate(id)
     await connectionsStore.fetchConnections()
-  } catch {
-    // validation failed
+  } catch (e) {
+    validateError.value = e instanceof Error ? e.message : t('connections.validateFailed')
   } finally {
     validating.value = null
   }
@@ -51,8 +54,11 @@ const handleValidate = async (id: string) => {
 
 const handleDelete = async (id: string) => {
   deleting.value = id
+  deleteError.value = null
   try {
     await connectionsStore.deleteConnection(id)
+  } catch (e) {
+    deleteError.value = e instanceof Error ? e.message : t('connections.deleteFailed')
   } finally {
     deleting.value = null
   }
@@ -93,36 +99,41 @@ onMounted(() => connectionsStore.fetchConnections())
     </div>
 
     <div v-if="connectionsStore.loading" class="loading">{{ t('common.loading') }}</div>
-    <table v-else class="conn-table">
-      <thead>
-        <tr>
-          <th>{{ t('connections.name') }}</th>
-          <th>{{ t('connections.type') }}</th>
-          <th>{{ t('connections.host') }}</th>
-          <th>{{ t('connections.validated') }}</th>
-          <th>{{ t('common.actions') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="c in connectionsStore.connections" :key="c.id">
-          <td :data-label="t('connections.name')">{{ c.name }}</td>
-          <td :data-label="t('connections.type')"><span class="type-badge">{{ c.type }}</span></td>
-          <td :data-label="t('connections.host')" class="mono">{{ c.endpoint }}</td>
-          <td :data-label="t('connections.validated')">{{ formatDate(c.validatedAt) }}</td>
-          <td :data-label="t('common.actions')" class="actions-cell">
-            <button class="btn-sm btn-secondary" :disabled="validating === c.id" @click="handleValidate(c.id)">
-              {{ validating === c.id ? t('common.loading') : t('connections.testConnection') }}
-            </button>
-            <button class="btn-sm btn-danger" :disabled="deleting === c.id" @click="handleDelete(c.id)">
-              {{ deleting === c.id ? t('common.loading') : t('common.delete') }}
-            </button>
-          </td>
-        </tr>
-        <tr v-if="connectionsStore.connections.length === 0">
-          <td colspan="5" class="empty">{{ t('common.noData') }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else>
+      <div v-if="connectionsStore.error" class="error">{{ connectionsStore.error }}</div>
+      <div v-if="validateError" class="error">{{ validateError }}</div>
+      <div v-if="deleteError" class="error">{{ deleteError }}</div>
+      <table class="conn-table">
+        <thead>
+          <tr>
+            <th>{{ t('connections.name') }}</th>
+            <th>{{ t('connections.type') }}</th>
+            <th>{{ t('connections.host') }}</th>
+            <th>{{ t('connections.validated') }}</th>
+            <th>{{ t('common.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in connectionsStore.connections" :key="c.id">
+            <td :data-label="t('connections.name')">{{ c.name }}</td>
+            <td :data-label="t('connections.type')"><span class="type-badge">{{ c.type }}</span></td>
+            <td :data-label="t('connections.host')" class="mono">{{ c.endpoint }}</td>
+            <td :data-label="t('connections.validated')">{{ formatDate(c.validatedAt) }}</td>
+            <td :data-label="t('common.actions')" class="actions-cell">
+              <button class="btn-sm btn-secondary" :disabled="validating === c.id" @click="handleValidate(c.id)">
+                {{ validating === c.id ? t('common.loading') : t('connections.testConnection') }}
+              </button>
+              <button class="btn-sm btn-danger" :disabled="deleting === c.id" @click="handleDelete(c.id)">
+                {{ deleting === c.id ? t('common.loading') : t('common.delete') }}
+              </button>
+            </td>
+          </tr>
+          <tr v-if="connectionsStore.connections.length === 0">
+            <td colspan="5" class="empty">{{ t('common.noData') }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 

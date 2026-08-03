@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { jobsApi } from '@/api/jobs'
 import { useSignalR } from '@/composables/useSignalR'
 import type { Job, JobStatus, StepStatus } from '@/types'
 
 const route = useRoute()
+const { t } = useI18n()
 const jobId = route.params.id as string
 
 const job = ref<Job | null>(null)
@@ -41,7 +43,7 @@ const fetchJob = async () => {
     const { data } = await jobsApi.get(jobId)
     job.value = data
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '載入任務失敗'
+    error.value = e instanceof Error ? e.message : t('jobs.loadFailed')
   } finally {
     loading.value = false
   }
@@ -53,7 +55,7 @@ const doAction = async (action: 'cancel' | 'pause' | 'resume' | 'retry') => {
     await jobsApi[action](jobId)
     await fetchJob()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '操作失敗'
+    error.value = e instanceof Error ? e.message : t('jobs.actionFailed')
   } finally {
     actionLoading.value = false
   }
@@ -87,41 +89,41 @@ onMounted(async () => {
 
 <template>
   <div class="job-detail">
-    <div v-if="loading" class="loading">載入中…</div>
+    <div v-if="loading" class="loading">{{ t('common.loading') }}</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <template v-else-if="job">
       <div class="header">
-        <h1>任務詳情</h1>
+        <h1>{{ t('jobs.detail') }}</h1>
         <div class="signal-status">
           <span :class="connected ? 'dot-green' : 'dot-red'"></span>
-          {{ connected ? '即時更新中' : '離線' }}
+          {{ connected ? t('jobs.online') : t('common.offline') }}
         </div>
       </div>
 
       <div class="info-panel">
         <div class="info-row"><span class="label">ID</span><span class="value mono">{{ job.id }}</span></div>
-        <div class="info-row"><span class="label">策略</span><span class="value">{{ job.strategy }}</span></div>
+        <div class="info-row"><span class="label">{{ t('jobs.strategy') }}</span><span class="value">{{ job.strategy }}</span></div>
         <div class="info-row">
-          <span class="label">狀態</span>
+          <span class="label">{{ t('jobs.status') }}</span>
           <span :class="['badge', statusClass(job.status)]">{{ job.status }}</span>
         </div>
         <div class="info-row">
-          <span class="label">總進度</span>
+          <span class="label">{{ t('jobs.totalProgress') }}</span>
           <div class="progress-bar"><div class="progress-fill" :style="{ width: job.progress + '%' }"></div></div>
           <span class="progress-text">{{ job.progress }}%</span>
         </div>
-        <div class="info-row"><span class="label">建立時間</span><span class="value">{{ formatDate(job.createdAt) }}</span></div>
-        <div class="info-row"><span class="label">更新時間</span><span class="value">{{ formatDate(job.updatedAt) }}</span></div>
+        <div class="info-row"><span class="label">{{ t('dashboard.table.createdAt') }}</span><span class="value">{{ formatDate(job.createdAt) }}</span></div>
+        <div class="info-row"><span class="label">{{ t('jobs.updatedAt') }}</span><span class="value">{{ formatDate(job.updatedAt) }}</span></div>
       </div>
 
       <div class="actions">
-        <button v-if="canPause" class="btn btn-secondary" :disabled="actionLoading" @click="doAction('pause')">暫停</button>
-        <button v-if="canResume" class="btn btn-primary" :disabled="actionLoading" @click="doAction('resume')">恢復</button>
-        <button v-if="canRetry" class="btn btn-primary" :disabled="actionLoading" @click="doAction('retry')">重試</button>
-        <button v-if="canCancel" class="btn btn-danger" :disabled="actionLoading" @click="doAction('cancel')">取消</button>
+        <button v-if="canPause" class="btn btn-secondary" :disabled="actionLoading" @click="doAction('pause')">{{ t('jobs.pause') }}</button>
+        <button v-if="canResume" class="btn btn-primary" :disabled="actionLoading" @click="doAction('resume')">{{ t('jobs.resume') }}</button>
+        <button v-if="canRetry" class="btn btn-primary" :disabled="actionLoading" @click="doAction('retry')">{{ t('jobs.retryShort') }}</button>
+        <button v-if="canCancel" class="btn btn-danger" :disabled="actionLoading" @click="doAction('cancel')">{{ t('jobs.cancelShort') }}</button>
       </div>
 
-      <h2>步驟</h2>
+      <h2>{{ t('jobs.steps') }}</h2>
       <div class="steps">
         <div v-for="step in job.steps" :key="step.id" class="step-card">
           <div class="step-header">
@@ -133,10 +135,10 @@ onMounted(async () => {
             <div class="progress-bar"><div class="progress-fill" :style="{ width: step.progress + '%' }"></div></div>
             <span class="progress-text">{{ step.progress }}%</span>
           </div>
-          <div v-if="step.retryCount > 0" class="step-retry">重試次數: {{ step.retryCount }}</div>
+          <div v-if="step.retryCount > 0" class="step-retry">{{ t('jobs.retryCount') }}: {{ step.retryCount }}</div>
           <div v-if="step.errorMessage" class="step-error">{{ step.errorMessage }}</div>
         </div>
-        <div v-if="job.steps.length === 0" class="empty">尚無步驟</div>
+        <div v-if="job.steps.length === 0" class="empty">{{ t('jobs.noSteps') }}</div>
       </div>
     </template>
   </div>

@@ -127,7 +127,7 @@ onMounted(async () => {
     const res = await dashboardApi.stats()
     stats.value = res.data
   } catch {
-    statsError.value = t('common.loading')
+    statsError.value = t('common.loadFailed')
   } finally {
     statsLoading.value = false
   }

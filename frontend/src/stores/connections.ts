@@ -6,12 +6,16 @@ import { connectionsApi } from '@/api/connections'
 export const useConnectionsStore = defineStore('connections', () => {
   const connections = ref<Connection[]>([])
   const loading = ref(false)
+  const error = ref<string | null>(null)
 
   const fetchConnections = async () => {
     loading.value = true
+    error.value = null
     try {
       const { data } = await connectionsApi.list()
       connections.value = data
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch connections'
     } finally {
       loading.value = false
     }
@@ -28,5 +32,5 @@ export const useConnectionsStore = defineStore('connections', () => {
     connections.value = connections.value.filter(c => c.id !== id)
   }
 
-  return { connections, loading, fetchConnections, createConnection, deleteConnection }
+  return { connections, loading, error, fetchConnections, createConnection, deleteConnection }
 })

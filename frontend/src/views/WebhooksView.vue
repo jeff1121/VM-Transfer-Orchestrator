@@ -7,12 +7,15 @@ import type { WebhookSubscription, CreateWebhookRequest, UpdateWebhookRequest } 
 const { t } = useI18n()
 const webhooks = ref<WebhookSubscription[]>([])
 const loading = ref(false)
+const loadError = ref<string | null>(null)
 const showForm = ref(false)
 const editingId = ref<string | null>(null)
 const formError = ref<string | null>(null)
 const testingId = ref<string | null>(null)
 const deletingId = ref<string | null>(null)
 const testMessage = ref<string | null>(null)
+const deleteError = ref<string | null>(null)
+const toggleError = ref<string | null>(null)
 
 const webhookTypes = ['Slack', 'Teams', 'Email', 'Http'] as const
 const eventOptions = ['JobSucceeded', 'JobFailed', 'StepFailed', 'SystemAnnouncement'] as const
@@ -35,11 +38,12 @@ const resetForm = () => {
 
 const fetchWebhooks = async () => {
   loading.value = true
+  loadError.value = null
   try {
     const res = await webhooksApi.list()
     webhooks.value = res.data
-  } catch {
-    // 載入失敗
+  } catch (e) {
+    loadError.value = e instanceof Error ? e.message : t('webhooks.loadFailed')
   } finally {
     loading.value = false
   }
@@ -99,6 +103,7 @@ const handleSubmit = async () => {
 }
 
 const handleToggle = async (w: WebhookSubscription) => {
+  toggleError.value = null
   try {
     await webhooksApi.update(w.id, {
       name: w.name,
@@ -107,17 +112,20 @@ const handleToggle = async (w: WebhookSubscription) => {
       isEnabled: !w.isEnabled,
     })
     await fetchWebhooks()
-  } catch {
-    // 切換失敗
+  } catch (e) {
+    toggleError.value = e instanceof Error ? e.message : t('webhooks.toggleFailed')
   }
 }
 
 const handleDelete = async (id: string) => {
   if (!confirm(t('webhooks.deleteConfirm'))) return
   deletingId.value = id
+  deleteError.value = null
   try {
     await webhooksApi.delete(id)
     await fetchWebhooks()
+  } catch (e) {
+    deleteError.value = e instanceof Error ? e.message : t('webhooks.deleteFailed')
   } finally {
     deletingId.value = null
   }
@@ -202,7 +210,11 @@ onMounted(fetchWebhooks)
     </div>
 
     <div v-if="loading" class="loading">{{ t('common.loading') }}</div>
-    <table v-else class="wh-table">
+    <template v-else>
+      <div v-if="loadError" class="error">{{ loadError }}</div>
+      <div v-if="toggleError" class="error">{{ toggleError }}</div>
+      <div v-if="deleteError" class="error">{{ deleteError }}</div>
+      <table class="wh-table">
       <thead>
         <tr>
           <th>{{ t('webhooks.name') }}</th>
@@ -240,7 +252,8 @@ onMounted(fetchWebhooks)
           <td colspan="6" class="empty">{{ t('common.noData') }}</td>
         </tr>
       </tbody>
-    </table>
+      </table>
+    </template>
   </div>
 </template>
 
