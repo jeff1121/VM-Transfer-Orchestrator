@@ -36,17 +36,14 @@ public sealed class GetHyperVVmDetailsHandler : IQueryHandler<GetHyperVVmDetails
 public sealed class ListVmsHandler : IQueryHandler<ListVmsQuery, IReadOnlyList<VmInfoDto>>
 {
     private readonly IConnectionRepository _connectionRepository;
-    private readonly IVSphereClient _vSphereClient;
-    private readonly IHyperVClient _hyperVClient;
+    private readonly ISourcePlatformProviderFactory _sourceFactory;
 
     public ListVmsHandler(
         IConnectionRepository connectionRepository,
-        IVSphereClient vSphereClient,
-        IHyperVClient hyperVClient)
+        ISourcePlatformProviderFactory sourceFactory)
     {
         _connectionRepository = connectionRepository;
-        _vSphereClient = vSphereClient;
-        _hyperVClient = hyperVClient;
+        _sourceFactory = sourceFactory;
     }
 
     public async Task<Result<IReadOnlyList<VmInfoDto>>> HandleAsync(ListVmsQuery query, CancellationToken ct = default)
@@ -55,11 +52,14 @@ public sealed class ListVmsHandler : IQueryHandler<ListVmsQuery, IReadOnlyList<V
         if (connection is null)
             return Result<IReadOnlyList<VmInfoDto>>.Failure(ErrorCodes.Connection.NotFound, $"找不到連線 {query.ConnectionId}。");
 
-        return connection.Type switch
+        try
         {
-            ConnectionType.VSphere => await _vSphereClient.ListVmsAsync(query.ConnectionId, ct),
-            ConnectionType.HyperV => await _hyperVClient.ListVmsAsync(query.ConnectionId, ct),
-            _ => Result<IReadOnlyList<VmInfoDto>>.Failure(ErrorCodes.Connection.ValidationFailed, "不支援的來源平台連線類型。")
-        };
+            var provider = _sourceFactory.GetProvider(connection.Type);
+            return await provider.ListVmsAsync(query.ConnectionId, ct);
+        }
+        catch (NotSupportedException ex)
+        {
+            return Result<IReadOnlyList<VmInfoDto>>.Failure(ErrorCodes.Connection.ValidationFailed, ex.Message);
+        }
     }
 }

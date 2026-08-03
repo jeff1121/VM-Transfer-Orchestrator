@@ -17,14 +17,15 @@ namespace VMTO.Application.Tests;
 public sealed class ValidateConnectionHandlerTests
 {
     private readonly IConnectionRepository _connectionRepository = Substitute.For<IConnectionRepository>();
-    private readonly IVSphereClient _vSphereClient = Substitute.For<IVSphereClient>();
-    private readonly IPveClient _pveClient = Substitute.For<IPveClient>();
-    private readonly IHyperVClient _hyperVClient = Substitute.For<IHyperVClient>();
+    private readonly ISourcePlatformProviderFactory _sourceFactory = Substitute.For<ISourcePlatformProviderFactory>();
+    private readonly ITargetPlatformProviderFactory _targetFactory = Substitute.For<ITargetPlatformProviderFactory>();
+    private readonly ISourcePlatformPort _sourcePort = Substitute.For<ISourcePlatformPort>();
+    private readonly ITargetPlatformPort _targetPort = Substitute.For<ITargetPlatformPort>();
     private readonly ValidateConnectionHandler _handler;
 
     public ValidateConnectionHandlerTests()
     {
-        _handler = new ValidateConnectionHandler(_connectionRepository, _vSphereClient, _pveClient, _hyperVClient);
+        _handler = new ValidateConnectionHandler(_connectionRepository, _sourceFactory, _targetFactory);
     }
 
     [Fact]
@@ -44,7 +45,8 @@ public sealed class ValidateConnectionHandlerTests
     {
         var connection = new Connection("vcenter-prod", ConnectionType.VSphere, "https://vcenter.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
-        _vSphereClient.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
+        _sourceFactory.GetProvider(ConnectionType.VSphere).Returns(_sourcePort);
+        _sourcePort.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
             .Returns(Result<IReadOnlyList<DTOs.VmInfoDto>>.Success(Array.Empty<DTOs.VmInfoDto>()));
 
         var result = await _handler.HandleAsync(new ValidateConnectionCommand(connection.Id));
@@ -59,7 +61,8 @@ public sealed class ValidateConnectionHandlerTests
     {
         var connection = new Connection("vcenter-prod", ConnectionType.VSphere, "https://vcenter.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
-        _vSphereClient.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
+        _sourceFactory.GetProvider(ConnectionType.VSphere).Returns(_sourcePort);
+        _sourcePort.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
             .Returns(Result<IReadOnlyList<DTOs.VmInfoDto>>.Failure(ErrorCodes.General.InternalError, "連線失敗"));
 
         var result = await _handler.HandleAsync(new ValidateConnectionCommand(connection.Id));
@@ -74,7 +77,8 @@ public sealed class ValidateConnectionHandlerTests
     {
         var connection = new Connection("hyperv-prod", ConnectionType.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
-        _hyperVClient.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
+        _sourceFactory.GetProvider(ConnectionType.HyperV).Returns(_sourcePort);
+        _sourcePort.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
             .Returns(Result<IReadOnlyList<DTOs.VmInfoDto>>.Success(Array.Empty<DTOs.VmInfoDto>()));
 
         var result = await _handler.HandleAsync(new ValidateConnectionCommand(connection.Id));

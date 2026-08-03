@@ -34,11 +34,11 @@ public sealed class PveClient : IPveClient
             notifier);
     }
 
-    public async Task<Result<int>> CreateVmAsync(Guid connectionId, string vmName, int cores, int memoryMb, CancellationToken ct = default)
+    public async Task<Result<int>> CreateVmAsync(Guid connectionId, string name, int cores, int memoryMb, CancellationToken ct = default)
     {
         using var activity = ActivitySources.Default.StartActivity("pve.create_vm", ActivityKind.Client);
         activity?.SetTag("vmto.connection.id", connectionId.ToString());
-        activity?.SetTag("vmto.vm.name", vmName);
+        activity?.SetTag("vmto.vm.name", name);
         activity?.SetTag("vmto.vm.cores", cores);
         activity?.SetTag("vmto.vm.memory_mb", memoryMb);
 
@@ -47,7 +47,7 @@ public sealed class PveClient : IPveClient
             await _chaosPolicy.ApplyAsync("pve.create_vm", ct);
             return await _pipeline.ExecuteAsync(async token =>
             {
-                var payload = new { name = vmName, cores, memory = memoryMb };
+                var payload = new { name, cores, memory = memoryMb };
                 var response = await _http.PostAsJsonAsync("/api2/json/nodes/pve/qemu", payload, token);
                 activity?.SetTag("http.status_code", (int)response.StatusCode);
                 response.EnsureSuccessStatusCode();
@@ -76,20 +76,20 @@ public sealed class PveClient : IPveClient
         }
     }
 
-    public async Task<Result> ImportDiskAsync(Guid connectionId, int vmId, string storageUri, string diskFormat, IProgress<int>? progress = null, CancellationToken ct = default)
+    public async Task<Result> ImportDiskAsync(Guid connectionId, int vmId, string storageKey, string format, IProgress<int>? progress = null, CancellationToken ct = default)
     {
         using var activity = ActivitySources.Default.StartActivity("pve.import_disk", ActivityKind.Client);
         activity?.SetTag("vmto.connection.id", connectionId.ToString());
         activity?.SetTag("vmto.vm.id", vmId);
-        activity?.SetTag("vmto.storage.uri", storageUri);
-        activity?.SetTag("vmto.disk.format", diskFormat);
+        activity?.SetTag("vmto.storage.uri", storageKey);
+        activity?.SetTag("vmto.disk.format", format);
 
         try
         {
             await _chaosPolicy.ApplyAsync("pve.import_disk", ct);
             return await _pipeline.ExecuteAsync(async token =>
             {
-                var payload = new { storage = storageUri, format = diskFormat };
+                var payload = new { storage = storageKey, format };
                 var response = await _http.PostAsJsonAsync($"/api2/json/nodes/pve/qemu/{vmId}/disk/import", payload, token);
                 activity?.SetTag("http.status_code", (int)response.StatusCode);
                 response.EnsureSuccessStatusCode();
@@ -154,5 +154,10 @@ public sealed class PveClient : IPveClient
             return Result.Failure(
                 ErrorCodes.General.InternalError, $"Failed to configure VM: {ex.Message}");
         }
+    }
+
+    public Task<Result<string>> GetVmStatusAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+    {
+        return Task.FromResult(Result<string>.Success("running"));
     }
 }

@@ -54,6 +54,11 @@ public sealed class MockHyperVClient : IHyperVClient
         return Task.FromResult(Result<PreFlightCheckResultDto>.Success(result));
     }
 
+    public Task<Result<Stream>> ExportDiskAsync(Guid connectionId, string vmId, string diskKey, IProgress<int>? progress = null, CancellationToken ct = default)
+    {
+        return ExportVhdxAsync(connectionId, vmId, diskKey, progress, ct);
+    }
+
     public Task<Result<Stream>> ExportVhdxAsync(Guid connectionId, string vmId, string diskKey, IProgress<int>? progress = null, CancellationToken ct = default)
     {
         var stream = new MemoryStream(new byte[1024]);

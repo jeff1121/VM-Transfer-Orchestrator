@@ -33,4 +33,29 @@ public sealed class MockVSphereClient : IVSphereClient
     {
         return Task.FromResult(Result.Success());
     }
+
+    public Task<Result<string>> GetVmStateAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+    {
+        return Task.FromResult(Result<string>.Success("poweredOff"));
+    }
+
+    public Task<Result<HyperVVmDetailsDto>> GetVmDetailsAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+    {
+        var details = new HyperVVmDetailsDto(vmId, "web-server-01", "poweredOff", 4, 8192, "VMware ESXi Guest", 0, []);
+        return Task.FromResult(Result<HyperVVmDetailsDto>.Success(details));
+    }
+
+    public Task<Result<PreFlightCheckResultDto>> RunPreFlightCheckAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+    {
+        IReadOnlyList<PreFlightCheckItemDto> items =
+        [
+            new PreFlightCheckItemDto("vCenterReachability", true, "vCenter API is reachable.")
+        ];
+        return Task.FromResult(Result<PreFlightCheckResultDto>.Success(new PreFlightCheckResultDto(connectionId, vmId, true, items)));
+    }
+
+    public Task<Result<Stream>> ExportDiskAsync(Guid connectionId, string vmId, string diskKey, IProgress<int>? progress = null, CancellationToken ct = default)
+    {
+        return ExportVmdkAsync(connectionId, vmId, diskKey, progress, ct);
+    }
 }
