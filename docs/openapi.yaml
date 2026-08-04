@@ -324,6 +324,99 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
 
+  /api/connections/{id}/vms:
+    get:
+      tags: [Connections]
+      summary: 列出來源平台 VM
+      operationId: listConnectionVms
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+      responses:
+        '200':
+          description: VM 清單
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VmInfo'
+        '404':
+          description: 連線不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: 來源平台不支援或驗證失敗
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/connections/{id}/vms/{vmId}:
+    get:
+      tags: [Connections]
+      summary: 取得 Hyper-V VM 詳細資訊
+      operationId: getHyperVVmDetails
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+        - name: vmId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: VM 詳細資訊
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HyperVVmDetails'
+        '404':
+          description: 連線或 VM 不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: 僅支援 Hyper-V 連線
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/connections/{id}/vms/{vmId}/preflight:
+    post:
+      tags: [Connections]
+      summary: 對指定 Hyper-V VM 執行 Pre-flight 檢查
+      operationId: runHyperVPreFlightCheck
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+        - name: vmId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pre-flight 檢查結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreFlightCheckResult'
+        '404':
+          description: 連線或 VM 不存在
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: 僅支援 Hyper-V 連線
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
   /api/artifacts:
     get:
       tags: [Artifacts]
@@ -653,12 +746,14 @@ components:
       enum:
         - FullCopy
         - Incremental
+        - HyperVOffline
 
     ConnectionType:
       type: string
       enum:
         - VSphere
         - ProxmoxVE
+        - HyperV
 
     ArtifactFormat:
       type: string
@@ -666,6 +761,7 @@ components:
         - Vmdk
         - Qcow2
         - Raw
+        - Vhdx
 
     LicensePlan:
       type: string
@@ -923,6 +1019,103 @@ components:
           type: string
           description: 連線密碼或 API Token（傳輸後加密存儲，API 不回傳）
           example: my-secret-password
+
+    VmInfo:
+      type: object
+      required: [id, name, cpuCount, memoryBytes, diskKeys]
+      properties:
+        id:
+          type: string
+          example: hv-vm-01
+        name:
+          type: string
+          example: win-server-01
+        cpuCount:
+          type: integer
+          example: 4
+        memoryBytes:
+          type: integer
+          format: int64
+          example: 8589934592
+        diskKeys:
+          type: array
+          items:
+            type: string
+          example: [disk-0]
+
+    HyperVVmDiskInfo:
+      type: object
+      required: [diskKey, path, sizeBytes, format]
+      properties:
+        diskKey:
+          type: string
+          example: disk-0
+        path:
+          type: string
+          example: C:\HyperV\Virtual Hard Disks\disk-0.vhdx
+        sizeBytes:
+          type: integer
+          format: int64
+        format:
+          type: string
+          example: VHDX
+
+    HyperVVmDetails:
+      type: object
+      required: [id, name, state, cpuCount, memoryBytes, guestOs, checkpointCount, disks]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        state:
+          type: string
+          example: Off
+        cpuCount:
+          type: integer
+        memoryBytes:
+          type: integer
+          format: int64
+        guestOs:
+          type: string
+          example: Windows Server 2022 Datacenter
+        checkpointCount:
+          type: integer
+        disks:
+          type: array
+          items:
+            $ref: '#/components/schemas/HyperVVmDiskInfo'
+
+    PreFlightCheckItem:
+      type: object
+      required: [name, isPassed, message]
+      properties:
+        name:
+          type: string
+          example: ApiReachability
+        isPassed:
+          type: boolean
+        message:
+          type: string
+        details:
+          type: string
+          nullable: true
+
+    PreFlightCheckResult:
+      type: object
+      required: [connectionId, vmId, isAllPassed, items]
+      properties:
+        connectionId:
+          type: string
+          format: uuid
+        vmId:
+          type: string
+        isAllPassed:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreFlightCheckItem'
 
     ActivateLicenseRequest:
       type: object
