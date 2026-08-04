@@ -68,7 +68,7 @@ test-PR-3
 > **版本：** 0.2.0  
 > **授權：** MIT License
 
-企業級虛擬機遷移編排工具，支援 **vSphere → Proxmox VE** 遷移。透過 Saga 編排模式自動完成 VMDK 匯出、磁碟格式轉換、物件儲存上傳、匯入 PVE 與驗證等完整流程，並提供即時進度追蹤與中斷 / 重試機制。
+企業級虛擬機遷移編排工具，支援 **vSphere / Hyper-V → Proxmox VE** 遷移。透過 Saga 編排模式自動完成 VMDK/VHDX 匯出、磁碟格式轉換、物件儲存上傳、匯入 PVE 與驗證等完整流程，並提供即時進度追蹤與中斷 / 重試機制。
 
 ---
 
@@ -76,9 +76,9 @@ test-PR-3
 
 VMTO 採用 **Clean Architecture + DDD (Domain-Driven Design)** 分層設計，搭配 **Event-driven** 架構處理長時間非同步遷移任務：
 
-- **Domain 層**：聚合根（MigrationJob、Connection、Artifact、License）、值物件、領域事件
-- **Application 層**：CQRS 命令 / 查詢、DTO、Port 介面
-- **Infrastructure 層**：EF Core 持久化、vSphere / PVE 客戶端、S3 儲存、加密服務
+- **Domain 層**：聚合根（MigrationJob、Connection、Artifact、License）、強型別 MigrationPlan、值物件、領域事件
+- **Application 層**：CQRS 命令 / 查詢、DTO、平台獨立 Port 介面（ISourcePlatformPort, ITargetPlatformPort）
+- **Infrastructure 層**：EF Core 持久化、vSphere / Hyper-V / PVE 客戶端與 Provider Factory、S3 儲存、加密服務
 - **API 層**：ASP.NET Core Minimal API，提供 REST 端點與 SignalR 即時推送
 - **Worker 層**：MassTransit 消費者 + Saga 狀態機，編排多步驟遷移流程
 
@@ -198,7 +198,18 @@ npm run dev
 
 ---
 
-## 最新完成能力（Phase 12）
+## 最新完成能力（Phase 13 / Epic 13）
+
+- **Hyper-V 來源平台整合與平台抽象化**
+  - **Hyper-V 離線匯出**：支援 Hyper-V 關機 VM 之 `.vhdx` 離線匯出、轉換與編排至 Proxmox VE。
+  - **Hyper-V Discovery & Pre-flight**：支援 Hyper-V VM 探索、規格細節檢索，以及遷移前之 API、VM 狀態、磁碟權限與儲存空間 Pre-flight 前置檢查。
+  - **平台獨立 Port 介面 (ISourcePlatformPort / ITargetPlatformPort)**：解耦 Hypervisor 特化邏輯，引入 Provider Factory 動態調度來源與目標平台 Client。
+  - **強型別 MigrationPlan**：使用 `MigrationStepType` enum 與 `MigrationPlan` Value Object 取代魔術字串，確保領域與 Saga 狀態轉移之強型別安全。
+  - **前端 UX 與 OpenAPI 規格**：完成 Connection 與 NewJob 面板適配（Pre-flight 檢核面板、Hyper-V 連線引導）、多國語言 (i18n) 以及 OpenAPI 3.0 規格全面同步。
+
+---
+
+## 歷史完成能力（Phase 12）
 
 - **E4 前端體驗升級完成**
   - 深色模式（含 ECharts dark theme 同步）
