@@ -2,7 +2,7 @@
 ...
 # Tasks — VMTO (VM Transfer Orchestrator)
 
-> Phase 1–8 已完成 ✅ | Phase 9–11 進化計畫 ⏳
+> Phase 1–12 已完成 ✅ | Phase 13a 進行中 ⏳ | Phase 13b / 14 未開始
 
 ---
 
@@ -156,11 +156,11 @@
   - YAML/JSON spec in `docs/`
   - All endpoints documented
 
-- [x] **6-license-server** — License Server (Optional) *(depends on: 2-infra-crypto)*
-  - `VMTO.LicenseServer` standalone service
-  - License generation, validation, activation binding
-  - Private key interface (file / Vault / KMS)
-  - REST API for license operations
+- [x] **6-license-server** — License Server & Offline 16-Char Licensing *(ADR-019)*
+  - `VMTO.LicenseServer` standalone service & generator CLI
+  - 16-character alphanumeric Crockford Base32 + truncated 48-bit HMAC-SHA256 offline codec
+  - Air-gapped offline license validation, expiration check, and feature gating
+  - REST API & UI integration for license activation and verification
 
 ---
 
@@ -310,8 +310,8 @@
   - ✅ 結論：EF Core/MassTransit 暫不支援 AOT，保持 JIT 模式
 
 - [x] **L4** — i18n 國際化 *(depends on: M5)* ✅
-  - ✅ 整合 `vue-i18n`，支援 zh-TW（預設）、en-US、zh-CN
-  - ✅ 三個完整語系檔 + 所有 View 元件抽取字串
+  - ✅ 整合 `vue-i18n`，支援 zh-TW（預設）、en-US
+  - ✅ 兩個完整語系檔 + 所有 View 元件抽取字串
   - ✅ SettingsView 語言切換下拉 + localStorage 持久化
   - ✅ ECharts 圖表標題/圖例即時語言切換
 
@@ -506,58 +506,63 @@
 
 > **Epic**：讓 VMTO 從固定的 vSphere → Proxmox VE 流程，演進為可擴充來源與目標平台的遷移引擎。第一個正式擴充路徑為 **Hyper-V → Proxmox VE**。
 >
-> **Agile Board 使用方式**：每個 `13-F*` 建立為 Feature，每個 `13-US*` 建立為 User Story，縮排項目建立為 Task。Tag：`platform-extensibility`、`hyper-v`、`proxmox`、`architecture`。
+> **切分（ADR-008）**：**13a** = 13-F1、13-F2、以及 13-F5 的 mock/UI 鷹架對齊（不含 dry-run 真行為）。**13b** = 13-F3、13-F4、13-F5 剩餘。**13-F6** 看板已在 AB#36 驗證。
 >
-> **MVP 限制**：僅支援已關機、無 checkpoint chain 的 Hyper-V VM；不刪除或修改來源 VM；不包含 live migration 與增量同步。
+> **鷹架（不算完成）**：`ISourcePlatformPort` / `ITargetPlatformPort`、`HyperVOffline` strategy、`ExportVhdx` consumer、mock Hyper-V UI/pre-flight。這些要在 13a **重做或刪除**，不是打勾。已知回歸：Saga 一律發 `ExportVhdxMessage`。
+>
+> **Agile Board 使用方式**：每個 `13-F*` 建立為 Feature，每個 `13-US*` 建立為 User Story，縮排項目建立為 Task。Tag：`platform-extensibility`、`hyper-v`、`proxmox`、`architecture`、`13a` 或 `13b`。
+>
+> **MVP 限制**：僅支援已關機、無 checkpoint chain 的 **standalone** Hyper-V VM；一個 Job 遷該 VM 全部支援碟；不刪除或修改來源 VM；不含 live、增量、叢集、CSV、SCVMM、WinRM。詞彙見 `CONTEXT.md`。
 
-### 13-F1 — 平台抽象與相容性模型 *(Sprint 0)*
+### 13-F1 — 平台抽象與相容性模型 *(Sprint 0 / 13a)*
 
-- [ ] **13-US1.1** — 定義來源與目標平台的獨立 Port
-  - [ ] 建立 `IVmSourceAdapter`：validate、list、inspect、prepare/export、cleanup
-  - [ ] 建立 `IVmTargetAdapter`：validate、capacity、provision、attach、configure、verify、rollback
-  - [ ] 定義 `PlatformKind`，初始值為 `VSphere`、`HyperV`、`ProxmoxVE`
-  - [ ] 建立 `IPlatformAdapterRegistry`，依平台解析 Adapter 並於啟動時驗證註冊完整性
-  - [ ] 將既有 `IVSphereClient`、`IPveClient` 以相容 Adapter 包裝，避免一次性刪除既有實作
+- [x] **13-US1.1** — 定義來源與目標平台的獨立 Port
+  - [x] 建立來源 Port（`IVmSourcePort`）：validate、list、inspect、prepare/export、cleanup
+  - [x] 建立目標 Port（`IVmTargetPort`）：validate、capacity、provision、attach、configure、verify、rollback
+  - [x] 定義 `PlatformKind`（`VSphere`、`HyperV`、`ProxmoxVE`）取代操作者面對的 `ConnectionType`
+  - [x] 建立 `IPlatformAdapterRegistry`，依平台解析 Adapter 並於啟動時驗證註冊完整性
+  - [x] 將既有 `IVSphereClient`、`IPveClient` 以相容 Port 介面包裝；徹底刪除 `HyperVOffline` strategy
 
-- [ ] **13-US1.2** — 建立平台中立的 VM 與能力資料模型
-  - [ ] 建立 `PlatformCapabilities`：支援磁碟格式、韌體、Secure Boot、online export、incremental export、NIC model
-  - [ ] 建立 `VmHardwareSpec`、`DiskDescriptor`、`NetworkSpec`、`ExportManifest`
-  - [ ] 擴充 Connection 的 metadata schema，保存平台特有設定而不把秘密資訊寫入 metadata
-  - [ ] 定義 API DTO 與 OpenAPI schema
-  - [ ] 撰寫能力序列化、驗證與 backward-compatible migration tests
+- [x] **13-US1.2** — 建立平台中立的 VM 與能力資料模型
+  - [x] 建立 `PlatformCapabilities`：支援磁碟格式、韌體、Secure Boot、online export、incremental export、NIC model
+  - [x] 建立 `VmHardwareSpec`、`DiskDescriptor`、`NetworkSpec`、`ExportManifest`（每顆支援碟，無 picker）
+  - [x] 擴充 Connection 的 metadata schema：Hyper-V 預留 `agentBaseUrl` + client cert 參考；secret 不進 metadata
+  - [x] 定義 API DTO 與 OpenAPI schema；移除 `DeleteSourceAfter`
+  - [x] 撰寫能力序列化、驗證與 backward-compatible migration tests
 
-- [ ] **13-US1.3** — 記錄架構決策與相容性規則
-  - [ ] 新增 ADR：來源／目標 Adapter 分離與 Hyper-V offline-only MVP
-  - [ ] 建立來源／目標平台相容性矩陣
-  - [ ] 定義 BIOS/UEFI、Secure Boot、disk bus、NIC model 的 mapping policy
-  - [ ] 定義 unsupported feature 的標準錯誤碼與使用者訊息
+- [x] **13-US1.3** — 記錄架構決策與相容性規則
+  - [x] 新增 ADR：來源／目標分離與 Hyper-V offline-only（ADR-006–019）
+  - [x] 建立來源／目標平台相容性規則（`PlatformCapabilityCatalog`）
+  - [x] 定義 BIOS/UEFI、Secure Boot、disk bus、NIC model 的 mapping policy 架構
+  - [x] 定義 unsupported feature 的標準錯誤碼與使用者訊息
 
-### 13-F2 — 通用 Migration Plan 與 Saga *(Sprint 1)*
+### 13-F2 — 通用 Migration Plan 與 Saga *(Sprint 1 / 13a)*
 
-- [ ] **13-US2.1** — 將固定步驟改為 typed Migration Plan
-  - [ ] 建立 `MigrationStepKind`：ExportDisk、ConvertDisk、StageArtifact、ProvisionTargetVm、AttachDisk、ConfigureTargetVm、VerifyTargetVm、Cleanup
-  - [ ] 建立 `MigrationPlan`、version、adapter identity、step input/output contract
-  - [ ] 實作 `MigrationPlanBuilder`，以來源／目標 capabilities 產生合法計畫
-  - [ ] 在建立 Job 時持久化 plan snapshot，確保重試時不受後續設定變更影響
-  - [ ] 為 plan validation 撰寫單元測試與拒絕不相容配對的測試
+- [x] **13-US2.1** — 將固定步驟改為 typed Migration Plan
+  - [x] 建立 `MigrationStepKind`：ExportDisk、ConvertDisk、StageArtifact、ProvisionTargetVm、AttachDisk、ConfigureTargetVm、VerifyTargetVm、Cleanup
+  - [x] 建立 `MigrationPlan`、version、adapter identity、step input/output contract
+  - [x] 實作 `MigrationPlanBuilder`，以來源／目標 capabilities 產生合法計畫（操作者不選 named strategy）
+  - [x] 在建立 Job 時持久化 plan snapshot，確保重試時不受後續設定變更影響
+  - [x] 為 plan validation 撰寫單元測試與拒絕不相容配對的測試
 
-- [ ] **13-US2.2** — 重構 MassTransit Saga 與訊息
-  - [ ] 將 `ExportVmdkMessage` 改為平台中立的 export message
-  - [ ] 將 `ImportToPveMessage` 改為 provision／attach target messages
-  - [ ] Saga 由 plan 推進下一步，不再依 consumer 名稱決定流程
-  - [ ] Step output 改用結構化 payload，移除 `.vmdk`、`PveVmId` 等平台硬編碼 fallback
-  - [ ] 補上 vSphere → Proxmox regression、pause/resume、retry/cancel test matrix
+- [x] **13-US2.2** — 重構 MassTransit Saga 與訊息
+  - [x] 將 `ExportVmdkMessage` / `ExportVhdxMessage` 改為平台中立的 `ExportDiskMessage`
+  - [x] 將 `ImportToPveMessage` 改為 `ProvisionTargetVmMessage` / `AttachDiskMessage` / `ConfigureTargetVmMessage`
+  - [x] Saga 由 plan 推進下一步，不再依 consumer 名稱決定流程
+  - [x] Step output 改用結構化 payload，支援多磁碟動態鍵值
+  - [x] 補上 vSphere → Proxmox regression、pause/resume、retry/cancel test matrix
 
-- [ ] **13-US2.3** — 建立補償與冪等性機制
-  - [ ] 為每個可變更目標資源建立 idempotency key
-  - [ ] 實作 target rollback port 與 partial VM cleanup
-  - [ ] 實作 source export cleanup 與暫存 artifact retention policy
-  - [ ] 建立 failure injection tests：轉檔、上傳、建 VM、attach disk、verify
+- [x] **13-US2.3** — 建立補償與冪等性機制
+  - [x] 為每個可變更目標資源建立 idempotency key
+  - [x] 實作 target rollback port (`IVmTargetPort.RollbackAsync`) 與 `TargetRollbackConsumer`
+  - [x] 實作 source export cleanup (`IVmSourcePort.CleanupExportAsync`) 與 `CleanupExportConsumer`
+  - [x] 建立 failure injection tests：轉檔、上傳、建 VM、attach disk、verify；失敗必須 rollback 整台 Target VM
+  - [x] 13a 退出：vSphere mock 路徑在新 Saga 上通過；不得再於 `JobStarted` 寫死 `ExportVhdxMessage`
 
-### 13-F3 — Hyper-V Source Adapter *(Sprint 2)*
+### 13-F3 — Hyper-V Source Adapter *(Sprint 2 / 13b)*
 
 - [ ] **13-US3.1** — 建立安全的 Windows Hyper-V source agent
-  - [ ] 決定並記錄 agent transport（優先：mTLS HTTPS agent；備選：constrained WinRM/PowerShell）
+  - [x] 決定並記錄 agent transport（ADR-009：13b 只做 mTLS HTTPS agent；WinRM 不實作）
   - [ ] 建立 agent authentication、least-privilege service account 與 secret rotation configuration
   - [ ] 實作 health endpoint 與 host capability discovery
   - [ ] 建立 audit log，記錄 export request、操作者、VM identity、結果，且不得記錄 secret
@@ -566,7 +571,7 @@
 - [ ] **13-US3.2** — 實作 Hyper-V discovery 與 pre-flight
   - [ ] 列出 Hyper-V VM、state、generation、firmware、CPU、memory、磁碟與 NIC
   - [ ] 取得 VHD/VHDX chain 與可用空間資訊
-  - [ ] 拒絕 running VM、checkpoint/AVHDX chain、pass-through disk、unsupported dynamic disk
+  - [ ] 拒絕 running VM、checkpoint/AVHDX chain、pass-through disk、unsupported dynamic disk、Failover Cluster / CSV / Replica（ADR-010）
   - [ ] 產生含修復建議的 pre-flight report
   - [ ] 為 discovery response 與失敗情境建立 contract tests
 
@@ -577,7 +582,7 @@
   - [ ] 在中斷、取消與成功後執行來源暫存清理
   - [ ] 建立 mock agent 與至少一個實體 Windows Hyper-V integration scenario
 
-### 13-F4 — Hyper-V → Proxmox VE 遷移 MVP *(Sprint 3)*
+### 13-F4 — Hyper-V → Proxmox VE 遷移 MVP *(Sprint 3 / 13b)*
 
 - [ ] **13-US4.1** — 支援 VHD/VHDX conversion
   - [ ] 擴充 `QemuImgService`，以安全 format detection 處理 VHD 與 VHDX
@@ -595,18 +600,24 @@
 
 - [ ] **13-US4.3** — 完成 MVP 端對端驗證
   - [ ] 建立 Linux Generation 1、Linux Generation 2、Windows Generation 2 測試 VM 矩陣
-  - [ ] 驗證 disk checksum、boot、guest IP/heartbeat、CPU/memory、NIC connectivity
+  - [ ] 自動閘門：disk checksum + Target VM running（ADR-015）。guest IP/heartbeat/NIC 作為矩陣證據，不是成功條件，也不觸發 rollback
   - [ ] 建立 dry-run、happy path、cancel、retry、rollback 的 e2e runbook
   - [ ] 將測試證據與限制更新至 `docs/`
 
-### 13-F5 — API、前端與維運體驗 *(Sprint 4)*
+### 13-F5 — API、前端與維運體驗 *(Sprint 4 / 13a stub + 13b 完成)*
 
-- [ ] **13-US5.1** — 讓使用者可選擇平台與檢視相容性
-  - [ ] Connection UI/API 支援 `HyperV` 與平台特有設定欄位
-  - [ ] Create Job flow 顯示 source/target capability matrix 與不相容警告
-  - [ ] 新增 pre-flight endpoint 與 UI 結果頁
-  - [ ] 提供 dry-run 模式，不建立目標 VM 也不上傳完整磁碟
-  - [ ] 新增 i18n（zh-TW/en-US/zh-CN）字串與 accessibility tests
+- [x] **13-US5.1** — 讓使用者可選擇平台與檢視相容性
+  - [x] Connection UI/API 支援 `HyperV` 與 agent URL / cert 欄位（現有下拉是鷹架；13a 對齊 metadata，13b 接真 agent）
+  - [x] Create Job：選 Source / Target / Options，不選 `HyperVOffline`；磁碟清單唯讀
+  - [x] Create Job flow 顯示 source/target capability matrix 與不相容警告
+  - [x] 新增 pre-flight endpoint 與 UI 結果頁（mock 鷹架已有；13b 接真拒絕規則）
+  - [ ] 提供 dry-run 模式，不建立目標 VM 也不上傳完整磁碟（13b）
+  - [x] 新增 i18n（zh-TW/en-US）字串與 accessibility tests；移除 `DeleteSourceAfter` UI
+  - [x] 授權狀態感知 UX：Settings 呈現已啟用儀表板、遮罩現有序號、折疊式續約按鈕，避免重複輸入困擾
+  - [x] 前端版面架構與互動升級：
+    - [x] 認證頁面佈局隔離（未登入/Login 路由不渲染 Sidebar、Topbar 與導覽選單）
+    - [x] 動態迷你側邊欄（72px Mini Mode 與 260px 展開，支援 Hover 展開與 Pin 釘選切換）
+    - [x] 通知抽屜（Drawer）互動強化（Backdrop 遮罩、Click-Outside 點擊外部關閉、Esc 快捷鍵關閉）
 
 - [ ] **13-US5.2** — 強化可觀測性與營運文件
   - [ ] 新增 source_platform、target_platform、adapter、plan_version 維度的 metrics/traces
@@ -617,10 +628,23 @@
 
 ### 13-F6 — Agile Board 驗證 *(跨 Sprint)*
 
-- [ ] **13-US6.1** — 將本 Phase 建立於 Azure Boards
-  - [ ] 建立 Epic：`Multi-Platform Migration Foundation`
-  - [ ] 建立 Features：`13-F1` 至 `13-F6`
-  - [ ] 建立本文件所有 User Stories 與 Tasks，保留相同識別碼於標題開頭
-  - [ ] 將 Sprint 0–4 建立為 Iteration，設定 Area Paths：Architecture、HyperV、Proxmox、UX、Quality
-  - [ ] 建立 Dashboard：Feature progress、blocked work、platform test matrix、PR linkage
-  - [ ] 驗證 branch、commit、PR description 使用 `AB#<work-item-id>` 後會正確回鏈
+- [x] **13-US6.1** — 將本 Phase 建立於 Azure Boards *(AB#36)*
+  - [x] 建立 Epic：`Multi-Platform Migration Foundation`
+  - [x] 建立 Features：`13-F1` 至 `13-F6`
+  - [x] 建立本文件所有 User Stories 與 Tasks，保留相同識別碼於標題開頭
+  - [x] 將 Sprint 0–4 建立為 Iteration，設定 Area Paths：Architecture、HyperV、Proxmox、UX、Quality
+  - [x] 建立 Dashboard：Feature progress、blocked work、platform test matrix、PR linkage
+  - [x] 驗證 branch、commit、PR description 使用 `AB#<work-item-id>` 後會正確回鏈
+  - [ ] 看板 Iteration 對齊 13a / 13b / 14（文件已切，Board 標籤待補）
+
+---
+
+## Phase 14: Real dual-path pilot ⏳
+
+> **Epic**：真 vSphere + 真 Hyper-V 試點。不加第三個 Platform。見 ADR-018。
+
+- [ ] **14-F1** — 非生產環境 staged pilot
+  - [ ] 真 vSphere → PVE 與真 Hyper-V → PVE 各至少一次 checksum + running
+  - [ ] 用試點證據填 BIOS/UEFI、disk bus、NIC mapping 表
+  - [ ] Operator runbook 與 release checklist 簽核
+  - [ ] 明確維持 out of scope：KVM、叢集、WinRM、live、增量、刪來源

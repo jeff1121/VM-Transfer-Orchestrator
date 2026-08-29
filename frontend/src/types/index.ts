@@ -1,8 +1,9 @@
 export type JobStatus = 'Created' | 'Queued' | 'Running' | 'Pausing' | 'Paused' | 'Resuming' | 'Cancelling' | 'Cancelled' | 'Failed' | 'Succeeded'
 export type StepStatus = 'Pending' | 'Running' | 'Retrying' | 'Failed' | 'Skipped' | 'Succeeded'
 export type ConnectionType = 'VSphere' | 'ProxmoxVE' | 'HyperV'
+export type PlatformKind = ConnectionType
 export type ArtifactFormat = 'Vmdk' | 'Qcow2' | 'Raw' | 'Vhdx'
-export type MigrationStrategy = 'FullCopy' | 'Incremental' | 'HyperVOffline'
+export type MigrationStrategy = 'FullCopy' | 'Incremental'
 
 export interface Job {
   id: string
@@ -97,7 +98,9 @@ export interface CreateJobRequest {
   targetConnectionId: string
   storageTarget: { type: string; endpoint: string; bucketOrPath: string; region?: string }
   strategy: MigrationStrategy
-  options: { targetDiskFormat: ArtifactFormat; deleteSourceAfter: boolean; verifyChecksum: boolean; maxRetries: number }
+  options: { targetDiskFormat: ArtifactFormat; verifyChecksum: boolean; maxRetries: number }
+  vmId: string
+  diskKeys?: string[]
 }
 
 export interface CreateConnectionRequest {

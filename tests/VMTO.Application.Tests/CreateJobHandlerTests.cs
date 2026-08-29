@@ -2,92 +2,83 @@ using FluentAssertions;
 using NSubstitute;
 using VMTO.Application.Commands.Handlers;
 using VMTO.Application.Commands.Jobs;
+using VMTO.Application.DTOs;
 using VMTO.Application.Ports.Repositories;
+using VMTO.Application.Ports.Services;
 using VMTO.Domain.Aggregates.Artifact;
+using VMTO.Domain.Aggregates.Connection;
 using VMTO.Domain.Aggregates.MigrationJob;
+using VMTO.Domain.Enums;
 using VMTO.Domain.ValueObjects;
+using VMTO.Shared;
 
 namespace VMTO.Application.Tests;
 
-/// <summary>
-/// CreateJobHandler 的單元測試。
-/// 驗證工作建立及步驟產生邏輯。
-/// </summary>
 public sealed class CreateJobHandlerTests
 {
     private readonly IJobRepository _jobRepository = Substitute.For<IJobRepository>();
+    private readonly IConnectionRepository _connectionRepository = Substitute.For<IConnectionRepository>();
+    private readonly ISourcePlatformProviderFactory _sourceFactory = Substitute.For<ISourcePlatformProviderFactory>();
     private readonly CreateJobHandler _handler;
 
     private static readonly StorageTarget DefaultStorage = new(StorageType.S3, "http://localhost:9000", "bucket", "us-east-1");
-    private static readonly MigrationOptions DefaultOptions = new(ArtifactFormat.Qcow2, false, true, 3);
+    private static readonly MigrationOptions DefaultOptions = new(ArtifactFormat.Qcow2, true, 3);
 
     public CreateJobHandlerTests()
     {
-        _handler = new CreateJobHandler(_jobRepository);
+        _handler = new CreateJobHandler(_jobRepository, _connectionRepository, _sourceFactory);
     }
 
     [Fact]
-    public async Task HandleAsync_成功建立Job並回傳Id()
+    public async Task HandleAsync_VSphereFullCopy_BuildsNeutralPlan()
     {
-        var command = new CreateJobCommand(
-            Guid.NewGuid(), Guid.NewGuid(), DefaultStorage, MigrationStrategy.FullCopy, DefaultOptions);
+        var source = new Connection("vc", PlatformKind.VSphere, "https://vc", new EncryptedSecret("c", "k"));
+        var target = new Connection("pve", PlatformKind.ProxmoxVE, "https://pve", new EncryptedSecret("c", "k"));
+        _connectionRepository.GetByIdAsync(source.Id, Arg.Any<CancellationToken>()).Returns(source);
+        _connectionRepository.GetByIdAsync(target.Id, Arg.Any<CancellationToken>()).Returns(target);
 
-        var result = await _handler.HandleAsync(command);
+        MigrationJob? saved = null;
+        await _jobRepository.AddAsync(Arg.Do<MigrationJob>(j => saved = j), Arg.Any<CancellationToken>());
+
+        var result = await _handler.HandleAsync(new CreateJobCommand(
+            source.Id, target.Id, DefaultStorage, MigrationStrategy.FullCopy, DefaultOptions, "vm-101", ["disk-0"]));
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().NotBeEmpty();
-        await _jobRepository.Received(1).AddAsync(Arg.Any<MigrationJob>(), Arg.Any<CancellationToken>());
+        saved.Should().NotBeNull();
+        saved!.Steps.Select(s => s.StepType).Should().Equal(
+            MigrationStepKind.ExportDisk,
+            MigrationStepKind.ConvertDisk,
+            MigrationStepKind.StageArtifact,
+            MigrationStepKind.ProvisionTargetVm,
+            MigrationStepKind.AttachDisk,
+            MigrationStepKind.ConfigureTargetVm,
+            MigrationStepKind.VerifyTargetVm,
+            MigrationStepKind.Cleanup);
+        saved.Strategy.Should().Be(MigrationStrategy.FullCopy);
+        saved.VmId.Should().Be("vm-101");
     }
 
     [Fact]
-    public async Task HandleAsync_正確建立FullCopy策略的步驟()
+    public async Task HandleAsync_HyperVIncremental_Rejected()
     {
-        MigrationJob? savedJob = null;
-        await _jobRepository.AddAsync(Arg.Do<MigrationJob>(j => savedJob = j), Arg.Any<CancellationToken>());
+        var source = new Connection("hv", PlatformKind.HyperV, "https://hv", new EncryptedSecret("c", "k"));
+        var target = new Connection("pve", PlatformKind.ProxmoxVE, "https://pve", new EncryptedSecret("c", "k"));
+        _connectionRepository.GetByIdAsync(source.Id, Arg.Any<CancellationToken>()).Returns(source);
+        _connectionRepository.GetByIdAsync(target.Id, Arg.Any<CancellationToken>()).Returns(target);
 
-        var command = new CreateJobCommand(
-            Guid.NewGuid(), Guid.NewGuid(), DefaultStorage, MigrationStrategy.FullCopy, DefaultOptions);
+        var result = await _handler.HandleAsync(new CreateJobCommand(
+            source.Id, target.Id, DefaultStorage, MigrationStrategy.Incremental, DefaultOptions, "hv-vm-01", ["disk-0"]));
 
-        await _handler.HandleAsync(command);
-
-        savedJob.Should().NotBeNull();
-        savedJob!.Steps.Should().HaveCount(5);
-        savedJob.Steps.Select(s => s.Name).Should()
-            .Equal("ExportVmdk", "ConvertDisk", "UploadArtifact", "ImportToPve", "Verify");
-        savedJob.Steps.Select(s => s.Order).Should().Equal(1, 2, 3, 4, 5);
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be(ErrorCodes.Plan.IncrementalNotSupported);
     }
 
     [Fact]
-    public async Task HandleAsync_正確建立Incremental策略的步驟()
+    public async Task HandleAsync_MissingVmId_Fails()
     {
-        MigrationJob? savedJob = null;
-        await _jobRepository.AddAsync(Arg.Do<MigrationJob>(j => savedJob = j), Arg.Any<CancellationToken>());
+        var result = await _handler.HandleAsync(new CreateJobCommand(
+            Guid.NewGuid(), Guid.NewGuid(), DefaultStorage, MigrationStrategy.FullCopy, DefaultOptions, ""));
 
-        var command = new CreateJobCommand(
-            Guid.NewGuid(), Guid.NewGuid(), DefaultStorage, MigrationStrategy.Incremental, DefaultOptions);
-
-        await _handler.HandleAsync(command);
-
-        savedJob.Should().NotBeNull();
-        savedJob!.Steps.Should().HaveCount(5);
-        savedJob.Steps.Select(s => s.Name).Should()
-            .Equal("EnableCbt", "IncrementalPull", "ApplyDelta", "FinalSyncCutover", "Verify");
-    }
-
-    [Fact]
-    public async Task HandleAsync_正確建立HyperVOffline策略的步驟()
-    {
-        MigrationJob? savedJob = null;
-        await _jobRepository.AddAsync(Arg.Do<MigrationJob>(j => savedJob = j), Arg.Any<CancellationToken>());
-
-        var command = new CreateJobCommand(
-            Guid.NewGuid(), Guid.NewGuid(), DefaultStorage, MigrationStrategy.HyperVOffline, DefaultOptions);
-
-        await _handler.HandleAsync(command);
-
-        savedJob.Should().NotBeNull();
-        savedJob!.Steps.Should().HaveCount(5);
-        savedJob.Steps.Select(s => s.Name).Should()
-            .Equal("ExportVhdx", "ConvertDisk", "UploadArtifact", "ImportToPve", "Verify");
+        result.IsSuccess.Should().BeFalse();
     }
 }

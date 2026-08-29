@@ -26,7 +26,7 @@ public sealed class RunPreFlightCheckHandler : ICommandHandler<RunPreFlightCheck
         if (connection is null)
             return Result<PreFlightCheckResultDto>.Failure(ErrorCodes.Connection.NotFound, $"找不到連線 {command.ConnectionId}。");
 
-        if (connection.Type != ConnectionType.HyperV)
+        if (connection.Type != PlatformKind.HyperV)
             return Result<PreFlightCheckResultDto>.Failure(ErrorCodes.Connection.ValidationFailed, "Pre-flight 檢查目前支援 Hyper-V 連線。");
 
         return await _hyperVClient.RunPreFlightCheckAsync(command.ConnectionId, command.VmId, ct);

@@ -22,7 +22,7 @@ public sealed class GetJobHandlerTests
     private readonly GetJobHandler _handler;
 
     private static readonly StorageTarget DefaultStorage = new(StorageType.S3, "http://localhost:9000", "bucket", "us-east-1");
-    private static readonly MigrationOptions DefaultOptions = new(ArtifactFormat.Qcow2, false, true, 3);
+    private static readonly MigrationOptions DefaultOptions = new(ArtifactFormat.Qcow2, true, 3);
 
     public GetJobHandlerTests()
     {
@@ -45,7 +45,7 @@ public sealed class GetJobHandlerTests
     public async Task HandleAsync_成功取得並映射JobDto()
     {
         var job = new MigrationJob(Guid.NewGuid(), Guid.NewGuid(), DefaultStorage, MigrationStrategy.FullCopy, DefaultOptions);
-        job.AddStep("ExportVmdk", 1);
+        job.AddStep("ExportDisk", 1);
         job.AddStep("ConvertDisk", 2);
         _jobRepository.GetByIdAsync(job.Id, Arg.Any<CancellationToken>()).Returns(job);
 
@@ -58,7 +58,7 @@ public sealed class GetJobHandlerTests
         dto.Strategy.Should().Be(MigrationStrategy.FullCopy);
         dto.Status.Should().Be(JobStatus.Created);
         dto.Steps.Should().HaveCount(2);
-        dto.Steps[0].Name.Should().Be("ExportVmdk");
+        dto.Steps[0].Name.Should().Be("ExportDisk");
         dto.Steps[1].Name.Should().Be("ConvertDisk");
     }
 }

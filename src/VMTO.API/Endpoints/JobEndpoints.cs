@@ -52,18 +52,30 @@ public static class JobEndpoints
 
     private static async Task<IResult> CreateJob(
         CreateJobRequest request,
+        VMTO.Application.Commands.ICommandHandler<VMTO.Application.Commands.Jobs.CreateJobCommand, Guid> handler,
         IJobRepository repo,
+        MassTransit.IPublishEndpoint publish,
+        HttpContext http,
         CancellationToken ct)
     {
-        var job = new MigrationJob(
+        var command = new VMTO.Application.Commands.Jobs.CreateJobCommand(
             request.SourceConnectionId,
             request.TargetConnectionId,
             request.StorageTarget,
             request.Strategy,
-            request.Options);
+            request.Options,
+            request.VmId,
+            request.DiskKeys);
 
-        await repo.AddAsync(job, ct);
-        return Results.Created($"/api/jobs/{job.Id}", MapToDto(job));
+        var result = await handler.HandleAsync(command, ct);
+        if (!result.IsSuccess)
+            return VMTO.API.Extensions.ResultExtensions.ToHttpResult(result, http);
+
+        var job = await repo.GetByIdAsync(result.Value, ct);
+        if (job is not null)
+            await publish.Publish(VMTO.Application.Messages.JobStartedMessage.FromJob(job), ct);
+
+        return Results.Created($"/api/jobs/{result.Value}", job is null ? new { id = result.Value } : MapToDto(job));
     }
 
     private static async Task<IResult> CancelJob(Guid id, IJobRepository repo, CancellationToken ct)
@@ -145,4 +157,6 @@ public sealed record CreateJobRequest(
     Guid TargetConnectionId,
     Domain.ValueObjects.StorageTarget StorageTarget,
     MigrationStrategy Strategy,
-    MigrationOptions Options);
+    MigrationOptions Options,
+    string VmId,
+    IReadOnlyList<string>? DiskKeys = null);

@@ -60,7 +60,7 @@ public static class ConnectionEndpoints
         CancellationToken ct)
     {
         var encryptedSecret = encryption.Encrypt(request.Secret);
-        var connection = new Connection(request.Name, request.Type, request.Endpoint, encryptedSecret);
+        var connection = new Connection(request.Name, request.Type, request.Endpoint, encryptedSecret, request.MetadataJson);
         await repo.AddAsync(connection, ct);
         return Results.Created($"/api/connections/{connection.Id}", MapToDto(connection));
     }
@@ -123,6 +123,7 @@ public static class ConnectionEndpoints
 
 public sealed record CreateConnectionRequest(
     string Name,
-    ConnectionType Type,
+    PlatformKind Type,
     string Endpoint,
-    string Secret);
+    string Secret,
+    string? MetadataJson = null);

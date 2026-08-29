@@ -33,4 +33,7 @@ public sealed class MockPveClient : IPveClient
     {
         return Task.FromResult(Result<string>.Success("running"));
     }
+
+    public Task<Result> RollbackAsync(Guid connectionId, string? targetVmId, string idempotencyKey, CancellationToken ct = default)
+        => Task.FromResult(Result.Success());
 }

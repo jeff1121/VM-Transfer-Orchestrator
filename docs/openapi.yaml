@@ -746,14 +746,32 @@ components:
       enum:
         - FullCopy
         - Incremental
-        - HyperVOffline
 
-    ConnectionType:
+    PlatformKind:
       type: string
       enum:
         - VSphere
         - ProxmoxVE
         - HyperV
+
+    ConnectionType:
+      $ref: '#/components/schemas/PlatformKind'
+
+    MigrationStepKind:
+      type: string
+      enum:
+        - ExportDisk
+        - ConvertDisk
+        - StageArtifact
+        - ProvisionTargetVm
+        - AttachDisk
+        - ConfigureTargetVm
+        - VerifyTargetVm
+        - Cleanup
+        - EnableCbt
+        - IncrementalPull
+        - ApplyDelta
+        - FinalSyncCutover
 
     ArtifactFormat:
       type: string
@@ -829,7 +847,7 @@ components:
           format: uuid
         name:
           type: string
-          example: ExportVmdk
+          example: ExportDisk
         order:
           type: integer
         status:
@@ -895,15 +913,18 @@ components:
 
     MigrationOptions:
       type: object
+      required: [targetDiskFormat, verifyChecksum, maxRetries]
       properties:
-        convertFormat:
+        targetDiskFormat:
           $ref: '#/components/schemas/ArtifactFormat'
         verifyChecksum:
           type: boolean
           default: true
-        deleteSourceAfter:
-          type: boolean
-          default: false
+        maxRetries:
+          type: integer
+          default: 3
+          minimum: 0
+          maximum: 10
 
     Connection:
       type: object
@@ -988,7 +1009,7 @@ components:
 
     CreateJobRequest:
       type: object
-      required: [sourceConnectionId, targetConnectionId, strategy]
+      required: [sourceConnectionId, targetConnectionId, strategy, options, vmId]
       properties:
         sourceConnectionId:
           type: string
@@ -1002,6 +1023,14 @@ components:
           $ref: '#/components/schemas/MigrationStrategy'
         options:
           $ref: '#/components/schemas/MigrationOptions'
+        vmId:
+          type: string
+          example: hv-vm-01
+        diskKeys:
+          type: array
+          items:
+            type: string
+          example: [disk-0]
 
     CreateConnectionRequest:
       type: object
@@ -1011,7 +1040,7 @@ components:
           type: string
           example: vCenter-Production
         type:
-          $ref: '#/components/schemas/ConnectionType'
+          $ref: '#/components/schemas/PlatformKind'
         endpoint:
           type: string
           example: https://vcenter.example.com/sdk
@@ -1019,6 +1048,10 @@ components:
           type: string
           description: 連線密碼或 API Token（傳輸後加密存儲，API 不回傳）
           example: my-secret-password
+        metadataJson:
+          type: string
+          description: 平台特定設定（JSON 字串，例如 Hyper-V agent URL / 憑證參考）
+          example: '{"agentBaseUrl":"https://hv01.local:8443"}'
 
     VmInfo:
       type: object
@@ -1268,11 +1301,6 @@ components:
         chaos:
           $ref: '#/components/schemas/ChaosConfig'
         connections:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-        webhooks:
           type: array
           items:
             type: object

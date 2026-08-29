@@ -3,31 +3,59 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSignalRStore } from '@/stores/signalr'
+import { useAuthStore } from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
 import { useNotificationsStore, type NotificationCategory } from '@/stores/notifications'
 
 const { t } = useI18n()
 const route = useRoute()
+const authStore = useAuthStore()
 const signalRStore = useSignalRStore()
 const notificationsStore = useNotificationsStore()
-useTheme()
+const { resolvedTheme, setThemeMode } = useTheme()
+
+const isAuthPage = computed(() => {
+  return route.name === 'login' || !authStore.isAuthenticated
+})
 
 const mobileMenuOpen = ref(false)
 const notificationDrawerOpen = ref(false)
 
+// Mini-Sidebar state management (Pinned vs Floating/Hover)
+const sidebarPinned = ref(localStorage.getItem('vmto_sidebar_pinned') !== 'false')
+const sidebarHovered = ref(false)
+
+const isSidebarExpanded = computed(() => {
+  return sidebarPinned.value || sidebarHovered.value
+})
+
+const toggleSidebarPin = () => {
+  sidebarPinned.value = !sidebarPinned.value
+  localStorage.setItem('vmto_sidebar_pinned', String(sidebarPinned.value))
+}
+
+const onSidebarMouseEnter = () => {
+  if (!sidebarPinned.value) {
+    sidebarHovered.value = true
+  }
+}
+
+const onSidebarMouseLeave = () => {
+  sidebarHovered.value = false
+}
+
 const navLinks = computed(() => [
-  { to: '/', label: t('nav.dashboard') },
-  { to: '/jobs/new', label: t('nav.newJob') },
-  { to: '/connections', label: t('nav.connections') },
-  { to: '/settings', label: t('nav.settings') },
-  { to: '/webhooks', label: `🔔 ${t('nav.webhooks')}` },
-  { to: '/audit', label: `📋 ${t('nav.audit')}` },
+  { to: '/', icon: '📊', label: t('nav.dashboard') },
+  { to: '/jobs/new', icon: '🚀', label: t('nav.newJob') },
+  { to: '/connections', icon: '🔌', label: t('nav.connections') },
+  { to: '/audit', icon: '🛡️', label: t('nav.audit') },
+  { to: '/settings', icon: '⚙️', label: t('nav.settings') },
 ])
 
 const mobileBottomLinks = computed(() => [
-  { to: '/', icon: '🏠', label: t('nav.dashboard') },
-  { to: '/jobs/new', icon: '➕', label: t('nav.newJob') },
-  { to: '/connections', icon: '🔗', label: t('nav.connections') },
+  { to: '/', icon: '📊', label: t('nav.dashboard') },
+  { to: '/jobs/new', icon: '🚀', label: t('nav.newJob') },
+  { to: '/connections', icon: '🔌', label: t('nav.connections') },
   { to: '/settings', icon: '⚙️', label: t('nav.settings') },
 ])
 
@@ -44,6 +72,10 @@ const categoryKey = (category: NotificationCategory) => {
   }
 }
 
+const toggleTheme = () => {
+  setThemeMode(resolvedTheme.value === 'dark' ? 'light' : 'dark')
+}
+
 const refreshPage = () => {
   window.location.reload()
 }
@@ -54,6 +86,10 @@ const toggleMobileMenu = () => {
 
 const toggleNotificationDrawer = () => {
   notificationDrawerOpen.value = !notificationDrawerOpen.value
+}
+
+const closeNotificationDrawer = () => {
+  notificationDrawerOpen.value = false
 }
 
 const markAllRead = () => {
@@ -69,220 +105,1026 @@ const handleOfflineReady = () => {
   })
 }
 
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') {
+    if (notificationDrawerOpen.value) {
+      notificationDrawerOpen.value = false
+    }
+    if (mobileMenuOpen.value) {
+      mobileMenuOpen.value = false
+    }
+  }
+}
+
 watch(() => route.fullPath, () => {
   mobileMenuOpen.value = false
+  notificationDrawerOpen.value = false
 })
 
 onMounted(() => {
   window.addEventListener('vmto-offline-ready', handleOfflineReady)
+  window.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('vmto-offline-ready', handleOfflineReady)
+  window.removeEventListener('keydown', handleKeyDown)
 })
 </script>
 
 <template>
-  <div id="app">
-    <nav :class="['sidebar', { open: mobileMenuOpen }]">
-      <div class="logo">
-        <h2>VMTO</h2>
-      </div>
-      <RouterLink v-for="link in navLinks" :key="link.to" :to="link.to" class="nav-link" @click="mobileMenuOpen = false">
-        {{ link.label }}
-      </RouterLink>
-    </nav>
-    <div v-if="mobileMenuOpen" class="mobile-overlay" @click="mobileMenuOpen = false"></div>
+  <div id="app" :class="['app-layout', { 'auth-layout': isAuthPage }]">
+    <!-- Unauthenticated / Login View: Pure Centered Layout -->
+    <template v-if="isAuthPage">
+      <main class="auth-page-wrapper">
+        <RouterView />
+      </main>
+    </template>
 
-    <main class="content">
-      <header class="topbar">
-        <button class="icon-btn mobile-only" @click="toggleMobileMenu">☰</button>
-        <button class="icon-btn bell-btn" @click="toggleNotificationDrawer">
-          🔔
-          <span v-if="notificationsStore.unreadCount > 0" class="bell-badge">{{ notificationsStore.unreadCount }}</span>
-        </button>
-      </header>
+    <!-- Authenticated Console Layout -->
+    <template v-else>
+      <!-- Dynamic Mini / Expanded Sidebar Navigation -->
+      <aside
+        :class="[
+          'glass-sidebar',
+          {
+            open: mobileMenuOpen,
+            'is-mini': !isSidebarExpanded,
+            'is-expanded': isSidebarExpanded,
+            'is-pinned': sidebarPinned,
+          },
+        ]"
+        @mouseenter="onSidebarMouseEnter"
+        @mouseleave="onSidebarMouseLeave"
+      >
+        <div class="sidebar-header">
+          <div class="sidebar-brand">
+            <div class="brand-badge">
+              <div class="brand-logo-container">
+                <img src="/logo.png" alt="VMTO Logo" class="brand-sidebar-logo" />
+              </div>
+              <div class="brand-text">
+                <span class="brand-title">VMTO</span>
+                <span class="brand-subtitle">Transfer Orchestrator</span>
+              </div>
+            </div>
+          </div>
+          <button
+            class="pin-toggle-btn"
+            :title="sidebarPinned ? '解除釘選 (進入迷你模式)' : '釘選側邊欄'"
+            @click="toggleSidebarPin"
+          >
+            <span>{{ sidebarPinned ? '📌' : '📍' }}</span>
+          </button>
+        </div>
 
-      <div v-if="signalRStore.showReconnectBanner" class="signalr-banner warning">
-        {{ t('signalr.reconnecting', { seconds: signalRStore.reconnectInSeconds }) }}
-      </div>
-      <div v-else-if="signalRStore.manualRefreshRequired" class="signalr-banner error">
-        <span>{{ t('signalr.manualRefresh') }}</span>
-        <button class="refresh-btn" @click="refreshPage">{{ t('signalr.refreshNow') }}</button>
-      </div>
-      <div class="signalr-quality">
-        <span :class="signalRStore.connected ? 'dot-green' : 'dot-red'"></span>
-        <span>{{ signalRStore.connected ? t('common.online') : t('common.offline') }}</span>
-        <span class="latency">
-          {{ signalRStore.latencyMs === null ? t('signalr.latencyUnknown') : t('signalr.latencyValue', { ms: signalRStore.latencyMs }) }}
-        </span>
-      </div>
-      <RouterView />
-    </main>
+        <nav class="sidebar-nav">
+          <RouterLink
+            v-for="link in navLinks"
+            :key="link.to"
+            :to="link.to"
+            class="nav-item"
+            :title="!isSidebarExpanded ? link.label : ''"
+            @click="mobileMenuOpen = false"
+          >
+            <span class="nav-icon">{{ link.icon }}</span>
+            <span class="nav-label">{{ link.label }}</span>
+            <div class="nav-active-glow"></div>
+          </RouterLink>
+        </nav>
 
-    <aside :class="['notification-drawer', { open: notificationDrawerOpen }]">
-      <div class="drawer-header">
-        <h3>{{ t('notifications.title') }}</h3>
-        <button class="text-btn" @click="markAllRead">{{ t('notifications.markAllRead') }}</button>
-      </div>
-      <div v-if="notificationsStore.items.length === 0" class="drawer-empty">{{ t('notifications.empty') }}</div>
-      <button
-        v-for="item in notificationsStore.items"
-        :key="item.id"
-        :class="['notice-item', { unread: !item.read }]"
-        @click="notificationsStore.markRead(item.id)">
-        <div class="notice-title">{{ t(`notifications.types.${categoryKey(item.category)}`) }}</div>
-        <div class="notice-message">{{ item.message }}</div>
-        <div class="notice-time">{{ new Date(item.createdAt).toLocaleString() }}</div>
-      </button>
-    </aside>
+        <div class="sidebar-footer">
+          <div class="cluster-status-card" :title="!isSidebarExpanded ? (signalRStore.connected ? '即時連線中' : '連線中斷') : ''">
+            <div class="status-indicator">
+              <span :class="['pulse-dot', signalRStore.connected ? 'online' : 'offline']"></span>
+              <span class="status-text">{{ signalRStore.connected ? t('common.online') : t('common.offline') }}</span>
+            </div>
+            <div class="latency-text">
+              {{ signalRStore.latencyMs === null ? '0ms' : `${signalRStore.latencyMs}ms latency` }}
+            </div>
+          </div>
+        </div>
+      </aside>
 
+      <div v-if="mobileMenuOpen" class="mobile-overlay" @click="mobileMenuOpen = false"></div>
+
+      <!-- Main Content Container -->
+      <div :class="['main-wrapper', { 'sidebar-mini-offset': !sidebarPinned }]">
+        <header class="glass-topbar">
+          <div class="topbar-left">
+            <button class="neu-icon-btn mobile-toggle" @click="toggleMobileMenu">
+              <span>☰</span>
+            </button>
+            <div class="breadcrumb-trail">
+              <span class="breadcrumb-root">VMTO Engine</span>
+              <span class="breadcrumb-sep">/</span>
+              <span class="breadcrumb-current">{{ route.name?.toString() || 'Console' }}</span>
+            </div>
+          </div>
+
+          <div class="topbar-right">
+            <!-- Theme Toggle -->
+            <button
+              class="neu-icon-btn theme-toggle-btn"
+              :title="resolvedTheme === 'dark' ? 'Switch to Light' : 'Switch to Dark'"
+              @click="toggleTheme"
+            >
+              <span>{{ resolvedTheme === 'dark' ? '🌙' : '☀️' }}</span>
+            </button>
+
+            <!-- Notification Bell -->
+            <button
+              class="neu-icon-btn bell-btn"
+              title="通知中心"
+              @click="toggleNotificationDrawer"
+            >
+              <span>🔔</span>
+              <span v-if="notificationsStore.unreadCount > 0" class="bell-badge">
+                {{ notificationsStore.unreadCount }}
+              </span>
+            </button>
+          </div>
+        </header>
+
+        <!-- Reconnect Banner -->
+        <transition name="fade">
+          <div v-if="signalRStore.showReconnectBanner" class="neu-banner banner-warning">
+            <span>⚠️ {{ t('signalr.reconnecting', { seconds: signalRStore.reconnectInSeconds }) }}</span>
+          </div>
+          <div v-else-if="signalRStore.manualRefreshRequired" class="neu-banner banner-error">
+            <span>🚨 {{ t('signalr.manualRefresh') }}</span>
+            <button class="neu-btn btn-sm btn-primary" @click="refreshPage">{{ t('signalr.refreshNow') }}</button>
+          </div>
+        </transition>
+
+        <!-- Router View Content -->
+        <main class="page-content">
+          <RouterView />
+        </main>
+      </div>
+
+      <!-- Notification Drawer Backdrop (Click-Outside Handler) -->
+      <transition name="fade">
+        <div
+          v-if="notificationDrawerOpen"
+          class="drawer-backdrop"
+          @click="closeNotificationDrawer"
+        ></div>
+      </transition>
+
+      <!-- Notification Drawer -->
+      <aside :class="['glass-drawer', { open: notificationDrawerOpen }]">
+        <div class="drawer-header">
+          <div class="drawer-title">
+            <span>🔔</span>
+            <h3>{{ t('notifications.title') }}</h3>
+          </div>
+          <div class="drawer-actions">
+            <button class="neu-text-btn" @click="markAllRead">{{ t('notifications.markAllRead') }}</button>
+            <button class="drawer-close-btn" title="關閉通知 (Esc)" @click="closeNotificationDrawer">✕</button>
+          </div>
+        </div>
+
+        <div v-if="notificationsStore.items.length === 0" class="drawer-empty">
+          <span class="empty-icon">✨</span>
+          <p>{{ t('notifications.empty') }}</p>
+        </div>
+
+        <div class="drawer-list">
+          <div
+            v-for="item in notificationsStore.items"
+            :key="item.id"
+            :class="['notice-card', { unread: !item.read }]"
+            @click="notificationsStore.markRead(item.id)"
+          >
+            <div class="notice-header">
+              <span class="notice-tag">{{ t(`notifications.types.${categoryKey(item.category)}`) }}</span>
+              <span class="notice-time">{{ new Date(item.createdAt).toLocaleTimeString() }}</span>
+            </div>
+            <div class="notice-message">{{ item.message }}</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Mobile Bottom Navigation -->
+      <nav class="glass-bottom-nav">
+        <RouterLink v-for="link in mobileBottomLinks" :key="link.to" :to="link.to" class="bottom-item">
+          <span class="bottom-icon">{{ link.icon }}</span>
+          <span class="bottom-label">{{ link.label }}</span>
+        </RouterLink>
+      </nav>
+    </template>
+
+    <!-- Toast Notifications (Always Global) -->
     <div class="toast-stack">
-      <div v-for="toast in notificationsStore.toasts" :key="toast.id" :class="['toast-item', toast.type]">
-        {{ toast.message }}
-      </div>
+      <transition-group name="toast">
+        <div v-for="toast in notificationsStore.toasts" :key="toast.id" :class="['glass-toast', toast.type]">
+          <span class="toast-icon">{{ toast.type === 'success' ? '✅' : toast.type === 'error' ? '❌' : 'ℹ️' }}</span>
+          <span class="toast-text">{{ toast.message }}</span>
+        </div>
+      </transition-group>
     </div>
-
-    <nav class="bottom-nav">
-      <RouterLink v-for="link in mobileBottomLinks" :key="link.to" :to="link.to" class="bottom-link">
-        <span>{{ link.icon }}</span>
-        <small>{{ link.label }}</small>
-      </RouterLink>
-    </nav>
   </div>
 </template>
 
 <style>
+/* ==========================================================================
+   Hyper-Modern Glassmorphism & Neumorphic Design System (Light & Dark)
+   ========================================================================== */
+
 :root {
-  --bg-primary: #f5f5f5;
-  --bg-elevated: #ffffff;
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --border-color: #e5e7eb;
-  --sidebar-bg: #1a1a2e;
-  --sidebar-text: #d1d5db;
-  --sidebar-active-bg: #16213e;
-  --sidebar-active-text: #ffffff;
+  /* Color Palette - Light */
+  --bg-gradient: radial-gradient(at 0% 0%, #f0f4ff 0, transparent 50%),
+                 radial-gradient(at 100% 0%, #fdf2f8 0, transparent 50%),
+                 radial-gradient(at 100% 100%, #f0fdf4 0, transparent 50%),
+                 radial-gradient(at 0% 100%, #faf5ff 0, transparent 50%),
+                 #f3f6fc;
+  --bg-primary: #f3f6fc;
+  --bg-surface: rgba(255, 255, 255, 0.7);
+  --bg-surface-elevated: rgba(255, 255, 255, 0.85);
+  --bg-surface-solid: #ffffff;
+
+  --glass-border: 1px solid rgba(255, 255, 255, 0.8);
+  --glass-border-subtle: 1px solid rgba(226, 232, 240, 0.8);
+  --glass-blur: blur(20px);
+  --glass-blur-sm: blur(12px);
+
+  --neu-shadow: 6px 6px 16px rgba(166, 179, 203, 0.35), -6px -6px 16px rgba(255, 255, 255, 0.9);
+  --neu-shadow-sm: 3px 3px 8px rgba(166, 179, 203, 0.3), -3px -3px 8px rgba(255, 255, 255, 0.8);
+  --neu-shadow-hover: 8px 8px 20px rgba(166, 179, 203, 0.45), -8px -8px 20px rgba(255, 255, 255, 0.95);
+  --neu-inset: inset 2px 2px 5px rgba(166, 179, 203, 0.35), inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  --primary-glow: rgba(99, 102, 241, 0.3);
+
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.12);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.12);
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.12);
+  --info: #0ea5e9;
+  --info-bg: rgba(14, 165, 233, 0.12);
 }
 
 :root[data-theme='dark'] {
-  --bg-primary: #0b1220;
-  --bg-elevated: #111827;
-  --text-primary: #e5e7eb;
-  --text-secondary: #9ca3af;
-  --border-color: #334155;
-  --sidebar-bg: #020617;
-  --sidebar-text: #94a3b8;
-  --sidebar-active-bg: #1e293b;
-  --sidebar-active-text: #f8fafc;
+  /* Color Palette - Dark */
+  --bg-gradient: radial-gradient(at 0% 0%, #1e1b4b 0, transparent 40%),
+                 radial-gradient(at 100% 0%, #31103f 0, transparent 40%),
+                 radial-gradient(at 50% 100%, #064e3b 0, transparent 40%),
+                 #0a0e17;
+  --bg-primary: #0a0e17;
+  --bg-surface: rgba(18, 24, 38, 0.65);
+  --bg-surface-elevated: rgba(24, 32, 50, 0.85);
+  --bg-surface-solid: #151d2f;
+
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  --glass-border-subtle: 1px solid rgba(255, 255, 255, 0.05);
+  --glass-blur: blur(24px);
+  --glass-blur-sm: blur(14px);
+
+  --neu-shadow: 6px 6px 18px rgba(0, 0, 0, 0.6), -4px -4px 14px rgba(255, 255, 255, 0.03);
+  --neu-shadow-sm: 3px 3px 10px rgba(0, 0, 0, 0.5), -2px -2px 8px rgba(255, 255, 255, 0.02);
+  --neu-shadow-hover: 8px 8px 24px rgba(0, 0, 0, 0.8), -6px -6px 18px rgba(255, 255, 255, 0.04);
+  --neu-inset: inset 2px 2px 6px rgba(0, 0, 0, 0.7), inset -2px -2px 6px rgba(255, 255, 255, 0.03);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+
+  --primary: #6366f1;
+  --primary-hover: #818cf8;
+  --primary-gradient: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+  --primary-glow: rgba(99, 102, 241, 0.4);
+
+  --success: #34d399;
+  --success-bg: rgba(52, 211, 153, 0.15);
+  --warning: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.15);
+  --danger: #f87171;
+  --danger-bg: rgba(248, 113, 113, 0.15);
+  --info: #38bdf8;
+  --info-bg: rgba(56, 189, 248, 0.15);
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-primary); color: var(--text-primary); }
-#app { display: flex; min-height: 100vh; }
-.sidebar { width: 220px; background: var(--sidebar-bg); color: var(--sidebar-active-text); padding: 20px 0; display: flex; flex-direction: column; z-index: 40; }
-.logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border-color); }
-.logo h2 { font-size: 1.4rem; }
-.nav-link { display: block; padding: 12px 20px; color: var(--sidebar-text); text-decoration: none; transition: background 0.2s; }
-.nav-link:hover, .nav-link.router-link-active { background: var(--sidebar-active-bg); color: var(--sidebar-active-text); }
-.content { flex: 1; padding: 24px; }
-.topbar { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 12px; }
-.icon-btn { width: 44px; height: 44px; border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer; background: var(--bg-elevated); color: var(--text-primary); position: relative; }
-.mobile-only { display: none; }
-.bell-badge { position: absolute; right: -6px; top: -6px; min-width: 20px; height: 20px; border-radius: 999px; background: #ef4444; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; padding: 0 6px; }
-.signalr-quality { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--text-secondary); font-size: 0.85rem; }
-.signalr-quality .latency { color: var(--text-secondary); }
-.dot-green, .dot-red { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
-.dot-green { background: #16a34a; }
-.dot-red { background: #ef4444; }
-.signalr-banner { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem; }
-.signalr-banner.warning { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
-.signalr-banner.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-.refresh-btn { border: 0; background: #1d4ed8; color: #fff; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
-.refresh-btn:hover { background: #1e40af; }
-.notification-drawer {
-  position: fixed;
-  right: 0;
+/* ==========================================================================
+   Global Reset & Base Elements
+   ========================================================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Main Layout */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  position: relative;
+}
+
+.auth-layout {
+  display: block;
+}
+
+.auth-page-wrapper {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* ==========================================================================
+   Dynamic Mini / Expanded Sidebar
+   ========================================================================== */
+
+.glass-sidebar {
+  width: 260px;
+  background: var(--bg-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-right: var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  z-index: 50;
+  box-shadow: var(--neu-shadow-sm);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+  position: relative;
+}
+
+/* Mini Sidebar Mode */
+.glass-sidebar.is-mini:not(.open) {
+  width: 76px;
+  padding: 24px 12px;
+}
+
+.glass-sidebar.is-mini .brand-text,
+.glass-sidebar.is-mini .nav-label,
+.glass-sidebar.is-mini .pin-toggle-btn,
+.glass-sidebar.is-mini .status-text,
+.glass-sidebar.is-mini .latency-text {
+  opacity: 0;
+  pointer-events: none;
+  display: none;
+}
+
+.glass-sidebar.is-mini .nav-item {
+  justify-content: center;
+  padding: 12px;
+}
+
+.glass-sidebar.is-mini .cluster-status-card {
+  padding: 10px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.glass-sidebar.is-mini .status-indicator {
+  margin-bottom: 0;
+}
+
+/* Hover Expanded Mode (when unpinned) */
+.glass-sidebar.is-expanded:not(.is-pinned) {
+  position: absolute;
   top: 0;
   bottom: 0;
-  width: min(360px, 90vw);
-  background: var(--bg-elevated);
-  border-left: 1px solid var(--border-color);
-  transform: translateX(100%);
-  transition: transform 0.2s ease;
+  left: 0;
+  width: 260px;
+  box-shadow: var(--neu-shadow-hover);
+  background: var(--bg-surface-solid);
   z-index: 60;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding: 0 4px;
+}
+
+.sidebar-brand {
+  flex: 1;
+  min-width: 0;
+}
+
+.brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo-container {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 4px 12px var(--primary-glow));
+}
+
+.brand-sidebar-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brand-text {
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.brand-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: block;
+}
+
+.brand-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pin-toggle-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+.pin-toggle-btn:hover {
+  opacity: 1;
+  background: var(--bg-surface-elevated);
+  transform: scale(1.1);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  position: relative;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.nav-icon {
+  font-size: 1.25rem;
+  min-width: 24px;
+  text-align: center;
+}
+
+.nav-label {
+  transition: opacity 0.2s ease;
+}
+
+.nav-item:hover {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--neu-shadow-sm);
+  transform: translateX(4px);
+}
+
+.nav-item.router-link-active {
+  background: var(--primary-gradient);
+  color: #ffffff;
+  box-shadow: 0 6px 18px var(--primary-glow);
+}
+
+.sidebar-footer {
+  padding-top: 16px;
+}
+
+.cluster-status-card {
+  background: var(--bg-surface-elevated);
+  border: var(--glass-border-subtle);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: var(--neu-inset);
+  transition: all 0.2s ease;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.pulse-dot.online {
+  background: var(--success);
+  box-shadow: 0 0 10px var(--success);
+}
+
+.pulse-dot.offline {
+  background: var(--danger);
+  box-shadow: 0 0 10px var(--danger);
+}
+
+.status-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.latency-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Main Wrapper & Topbar
+   ========================================================================== */
+
+.main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+  transition: padding-left 0.3s ease;
+}
+
+.sidebar-mini-offset {
+  margin-left: 0;
+}
+
+.glass-topbar {
+  height: 72px;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: var(--glass-border);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.breadcrumb-trail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.breadcrumb-root {
+  color: var(--text-muted);
+}
+
+.breadcrumb-sep {
+  color: var(--text-muted);
+}
+
+.breadcrumb-current {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Neumorphic Buttons */
+.neu-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: var(--glass-border);
+  background: var(--bg-surface-elevated);
+  box-shadow: var(--neu-shadow-sm);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  font-size: 1.1rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.neu-icon-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--neu-shadow-hover);
+}
+
+.neu-icon-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--neu-inset);
+}
+
+.mobile-toggle {
+  display: none;
+}
+
+.bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  background: var(--danger);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.5);
+}
+
+/* Content Area */
+.page-content {
+  flex: 1;
+  padding: 32px;
+  max-width: 1360px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Banners */
+.neu-banner {
+  margin: 16px 32px 0;
+  padding: 14px 20px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--neu-shadow-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.banner-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.banner-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ==========================================================================
+   Notification Drawer & Backdrop
+   ========================================================================== */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 90;
+}
+
+.glass-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  background: var(--bg-surface-elevated);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-left: var(--glass-border);
+  box-shadow: var(--neu-shadow-hover);
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 100;
   display: flex;
   flex-direction: column;
 }
-.notification-drawer.open { transform: translateX(0); }
-.drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-bottom: 1px solid var(--border-color); }
-.text-btn { border: 0; background: transparent; color: #2563eb; cursor: pointer; }
-.drawer-empty { padding: 20px; color: var(--text-secondary); }
-.notice-item { width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--border-color); background: transparent; padding: 12px 16px; cursor: pointer; color: var(--text-primary); }
-.notice-item.unread { background: color-mix(in srgb, var(--bg-elevated) 88%, #2563eb 12%); }
-.notice-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 3px; }
-.notice-message { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; }
-.notice-time { font-size: 0.75rem; color: var(--text-secondary); }
-.toast-stack { position: fixed; top: 18px; right: 18px; z-index: 80; display: flex; flex-direction: column; gap: 8px; }
-.toast-item { min-width: 260px; border-radius: 8px; padding: 10px 12px; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
-.toast-item.success { background: #059669; }
-.toast-item.error { background: #dc2626; }
-.toast-item.warning { background: #d97706; }
-.toast-item.info { background: #2563eb; }
-.bottom-nav { display: none; }
-.mobile-overlay { display: none; }
 
-@media (max-width: 768px) {
-  .sidebar {
+.glass-drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: var(--glass-border-subtle);
+}
+
+.drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-title h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.drawer-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.drawer-close-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+}
+
+.neu-text-btn {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.drawer-empty {
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.drawer-empty .empty-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.drawer-list {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.notice-card {
+  background: var(--bg-surface);
+  border: var(--glass-border-subtle);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: var(--neu-shadow-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notice-card.unread {
+  border-left: 4px solid var(--primary);
+  background: var(--bg-surface-elevated);
+}
+
+.notice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.notice-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+}
+
+.notice-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.notice-message {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Glass Toasts */
+.toast-stack {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.glass-toast {
+  min-width: 320px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  background: var(--bg-surface-elevated);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.glass-toast.success { border-left: 5px solid var(--success); }
+.glass-toast.error { border-left: 5px solid var(--danger); }
+.glass-toast.warning { border-left: 5px solid var(--warning); }
+.glass-toast.info { border-left: 5px solid var(--info); }
+
+/* Glass Bottom Nav */
+.glass-bottom-nav {
+  display: none;
+}
+
+/* ==========================================================================
+   Responsive Rules
+   ========================================================================== */
+
+@media (max-width: 992px) {
+  .glass-sidebar {
     position: fixed;
     left: 0;
     top: 0;
     bottom: 0;
+    width: 260px !important;
+    padding: 24px 16px !important;
     transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
   }
-  .sidebar.open { transform: translateX(0); }
+
+  .glass-sidebar .brand-text,
+  .glass-sidebar .nav-label,
+  .glass-sidebar .status-text,
+  .glass-sidebar .latency-text {
+    opacity: 1 !important;
+    display: block !important;
+  }
+
+  .glass-sidebar .pin-toggle-btn {
+    display: none !important;
+  }
+
+  .glass-sidebar.open {
+    transform: translateX(0);
+  }
+
   .mobile-overlay {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.4);
-    z-index: 30;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 45;
   }
-  .content { padding: 16px 12px 84px; }
-  .mobile-only { display: inline-flex; align-items: center; justify-content: center; }
-  .topbar { justify-content: space-between; }
-  button, .btn, .btn-sm, .btn-page, .btn-toggle { min-height: 44px; }
-  .bottom-nav {
+
+  .mobile-toggle {
+    display: flex;
+  }
+
+  .page-content {
+    padding: 20px 16px 84px;
+  }
+
+  .glass-topbar {
+    padding: 0 16px;
+  }
+
+  .glass-bottom-nav {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     position: fixed;
+    bottom: 0;
     left: 0;
     right: 0;
-    bottom: 0;
-    height: 70px;
-    background: var(--bg-elevated);
-    border-top: 1px solid var(--border-color);
-    z-index: 70;
+    height: 68px;
+    background: var(--bg-surface-elevated);
+    backdrop-filter: var(--glass-blur);
+    border-top: var(--glass-border);
+    z-index: 50;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
   }
-  .bottom-link {
-    text-decoration: none;
-    color: var(--text-secondary);
+
+  .bottom-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 4px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 600;
   }
-  .bottom-link.router-link-active { color: #2563eb; }
-  .bottom-link small { font-size: 0.7rem; }
-  .toast-stack {
-    left: 12px;
-    right: 12px;
-    top: auto;
-    bottom: 82px;
+
+  .bottom-item.router-link-active {
+    color: var(--primary);
   }
-  .toast-item { min-width: 100%; }
+
+  .bottom-icon {
+    font-size: 1.25rem;
+  }
+}
+
+/* Animations */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toast-enter-from {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.95);
+}
+
+.toast-leave-to {
+  opacity: 0;
+  transform: translateX(100px);
 }
 </style>

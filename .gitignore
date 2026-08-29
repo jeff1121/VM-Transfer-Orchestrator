@@ -33,3 +33,5 @@ publish/
 out/
 bin\\
 obj\\
+logs/
+*.log

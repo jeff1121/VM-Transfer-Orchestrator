@@ -5,6 +5,7 @@ using Hangfire.PostgreSql;
 using HealthChecks.UI.Client;
 using MassTransit;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using VMTO.API.Auth;
 using VMTO.API.Endpoints;
@@ -79,11 +80,16 @@ builder.Services.AddMassTransit(x =>
 });
 
 // Hangfire
+var hangfireConnStr = builder.Configuration.GetConnectionString("Hangfire");
+if (string.IsNullOrWhiteSpace(hangfireConnStr))
+{
+    hangfireConnStr = builder.Configuration.GetConnectionString("PostgreSQL")
+        ?? builder.Configuration.GetConnectionString("DefaultConnection");
+}
+
 builder.Services.AddHangfire(config =>
     config.UsePostgreSqlStorage(options =>
-        options.UseNpgsqlConnection(
-            builder.Configuration.GetConnectionString("Hangfire")
-            ?? builder.Configuration.GetConnectionString("PostgreSQL"))));
+        options.UseNpgsqlConnection(hangfireConnStr)));
 builder.Services.AddHangfireServer();
 
 // Swagger
@@ -130,11 +136,6 @@ builder.Services.AddCors(options =>
 // ProblemDetails + exception handler
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddHealthChecksUI(options =>
-{
-    options.SetEvaluationTimeInSeconds(30);
-    options.AddHealthCheckEndpoint("vmto-api", "/health/ready");
-}).AddInMemoryStorage();
 
 // Rate Limiting — 依角色不同限制
 builder.Services.AddRateLimiter(options =>
@@ -201,6 +202,13 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+// 自動執行 EF Core 遷移（確保資料庫表格已建立）
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<VMTO.Infrastructure.Persistence.AppDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
+
 // Middleware pipeline
 app.UseResponseCompression();
 app.UseMiddleware<CorrelationIdMiddleware>();
@@ -219,7 +227,6 @@ if (app.Environment.IsDevelopment())
 // Map endpoints
 app.MapAuthEndpoints();
 app.MapJobEndpoints();
-app.MapWebhookEndpoints();
 app.MapConnectionEndpoints();
 app.MapArtifactEndpoints();
 app.MapLicenseEndpoints();
@@ -246,7 +253,6 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     Predicate = _ => true,
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
-app.MapHealthChecksUI(options => options.UIPath = "/health-ui");
 app.MapPrometheusScrapingEndpoint("/metrics");
 
 // Hangfire dashboard (dev only)

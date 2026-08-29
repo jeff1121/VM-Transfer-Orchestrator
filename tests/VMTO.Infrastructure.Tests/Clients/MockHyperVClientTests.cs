@@ -29,7 +29,7 @@ public sealed class MockHyperVClientTests
     [Fact]
     public async Task ExportVhdxAsyncShouldReturnStream()
     {
-        var result = await _client.ExportVhdxAsync(Guid.NewGuid(), "hv-vm-01", "disk-0");
+        var result = await _client.ExportDiskAsync(Guid.NewGuid(), "hv-vm-01", "disk-0");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
@@ -39,7 +39,7 @@ public sealed class MockHyperVClientTests
     [Fact]
     public async Task GetVmDetailsAsyncShouldReturnDetails()
     {
-        var result = await _client.GetVmDetailsAsync(Guid.NewGuid(), "hv-vm-01");
+        var result = await _client.InspectAsync(Guid.NewGuid(), "hv-vm-01");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
@@ -55,6 +55,6 @@ public sealed class MockHyperVClientTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value!.IsAllPassed.Should().BeTrue();
-        result.Value.Items.Should().HaveCount(4);
+        result.Value.Items.Should().HaveCount(5);
     }
 }

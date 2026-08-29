@@ -17,7 +17,7 @@ public sealed class MigrationJobTests
     private static readonly Guid SourceConnId = Guid.NewGuid();
     private static readonly Guid TargetConnId = Guid.NewGuid();
     private static readonly StorageTarget DefaultStorage = new(StorageType.S3, "http://localhost:9000", "bucket", "us-east-1");
-    private static readonly MigrationOptions DefaultOptions = new(ArtifactFormat.Qcow2, false, true, 3);
+    private static readonly MigrationOptions DefaultOptions = new(ArtifactFormat.Qcow2, true, 3);
 
     // 建立預設的 MigrationJob 實例
     private static MigrationJob CreateJob(CorrelationId? correlationId = null)
@@ -394,7 +394,7 @@ public sealed class MigrationJobTests
     public void Complete_所有步驟已完成應成功轉換為Succeeded()
     {
         var job = CreateJobInStatus(JobStatus.Running);
-        job.AddStep("ExportVmdk", 1);
+        job.AddStep("ExportDisk", 1);
         job.AddStep("ConvertDisk", 2);
         // 將所有步驟設為已完成
         foreach (var step in job.Steps)
@@ -414,7 +414,7 @@ public sealed class MigrationJobTests
     public void Complete_包含Skipped步驟也應成功()
     {
         var job = CreateJobInStatus(JobStatus.Running);
-        job.AddStep("ExportVmdk", 1);
+        job.AddStep("ExportDisk", 1);
         job.AddStep("ConvertDisk", 2);
         job.Steps[0].Start();
         job.Steps[0].Complete();
@@ -431,7 +431,7 @@ public sealed class MigrationJobTests
     public void Complete_有未完成步驟應失敗()
     {
         var job = CreateJobInStatus(JobStatus.Running);
-        job.AddStep("ExportVmdk", 1);
+        job.AddStep("ExportDisk", 1);
         job.AddStep("ConvertDisk", 2);
         job.Steps[0].Start();
         job.Steps[0].Complete();
@@ -468,11 +468,11 @@ public sealed class MigrationJobTests
     {
         var job = CreateJob();
 
-        job.AddStep("ExportVmdk", 1);
+        job.AddStep("ExportDisk", 1);
         job.AddStep("ConvertDisk", 2);
 
         job.Steps.Should().HaveCount(2);
-        job.Steps[0].Name.Should().Be("ExportVmdk");
+        job.Steps[0].Name.Should().Be("ExportDisk");
         job.Steps[0].Order.Should().Be(1);
         job.Steps[1].Name.Should().Be("ConvertDisk");
         job.Steps[1].Order.Should().Be(2);

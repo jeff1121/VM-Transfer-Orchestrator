@@ -15,7 +15,7 @@ public sealed class PlatformProviderFactoriesTests
         var hyperVClient = Substitute.For<IHyperVClient>();
         var factory = new SourcePlatformProviderFactory(vSphereClient, hyperVClient);
 
-        var provider = factory.GetProvider(ConnectionType.VSphere);
+        var provider = factory.GetProvider(PlatformKind.VSphere);
 
         provider.Should().BeSameAs(vSphereClient);
     }
@@ -27,7 +27,7 @@ public sealed class PlatformProviderFactoriesTests
         var hyperVClient = Substitute.For<IHyperVClient>();
         var factory = new SourcePlatformProviderFactory(vSphereClient, hyperVClient);
 
-        var provider = factory.GetProvider(ConnectionType.HyperV);
+        var provider = factory.GetProvider(PlatformKind.HyperV);
 
         provider.Should().BeSameAs(hyperVClient);
     }
@@ -39,7 +39,7 @@ public sealed class PlatformProviderFactoriesTests
         var hyperVClient = Substitute.For<IHyperVClient>();
         var factory = new SourcePlatformProviderFactory(vSphereClient, hyperVClient);
 
-        Action act = () => factory.GetProvider(ConnectionType.ProxmoxVE);
+        Action act = () => factory.GetProvider(PlatformKind.ProxmoxVE);
 
         act.Should().Throw<NotSupportedException>();
     }
@@ -50,7 +50,7 @@ public sealed class PlatformProviderFactoriesTests
         var pveClient = Substitute.For<IPveClient>();
         var factory = new TargetPlatformProviderFactory(pveClient);
 
-        var provider = factory.GetProvider(ConnectionType.ProxmoxVE);
+        var provider = factory.GetProvider(PlatformKind.ProxmoxVE);
 
         provider.Should().BeSameAs(pveClient);
     }
@@ -61,7 +61,7 @@ public sealed class PlatformProviderFactoriesTests
         var pveClient = Substitute.For<IPveClient>();
         var factory = new TargetPlatformProviderFactory(pveClient);
 
-        Action act = () => factory.GetProvider(ConnectionType.VSphere);
+        Action act = () => factory.GetProvider(PlatformKind.VSphere);
 
         act.Should().Throw<NotSupportedException>();
     }

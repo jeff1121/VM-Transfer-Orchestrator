@@ -11,7 +11,7 @@ namespace VMTO.Domain.Tests;
 public sealed class ConnectionTests
 {
     private static Connection CreateConnection()
-        => new("vcenter-prod", ConnectionType.VSphere, "https://vcenter.local", new EncryptedSecret("cipher-text", "key-1"));
+        => new("vcenter-prod", PlatformKind.VSphere, "https://vcenter.local", new EncryptedSecret("cipher-text", "key-1"));
 
     #region 建構子測試
 
@@ -20,11 +20,11 @@ public sealed class ConnectionTests
     {
         var secret = new EncryptedSecret("cipher-text", "key-1");
 
-        var conn = new Connection("vcenter-prod", ConnectionType.VSphere, "https://vcenter.local", secret);
+        var conn = new Connection("vcenter-prod", PlatformKind.VSphere, "https://vcenter.local", secret);
 
         conn.Id.Should().NotBeEmpty();
         conn.Name.Should().Be("vcenter-prod");
-        conn.Type.Should().Be(ConnectionType.VSphere);
+        conn.Type.Should().Be(PlatformKind.VSphere);
         conn.Endpoint.Should().Be("https://vcenter.local");
         conn.EncryptedSecret.Should().Be(secret);
         conn.ValidatedAt.Should().BeNull();

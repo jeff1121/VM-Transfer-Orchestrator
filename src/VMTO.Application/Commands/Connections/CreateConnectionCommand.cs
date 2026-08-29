@@ -4,6 +4,7 @@ namespace VMTO.Application.Commands.Connections;
 
 public sealed record CreateConnectionCommand(
     string Name,
-    ConnectionType Type,
+    PlatformKind Type,
     string Endpoint,
-    string Secret);
+    string Secret,
+    string? MetadataJson = null);

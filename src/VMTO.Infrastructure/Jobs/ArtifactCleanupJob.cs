@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using VMTO.Application.Ports.Services;
 using VMTO.Infrastructure.Ops;
 using VMTO.Infrastructure.Persistence;
 
@@ -15,7 +14,6 @@ public sealed partial class ArtifactCleanupJob(
     IConfiguration configuration,
     ILogger<ArtifactCleanupJob> logger,
     IOptions<OpsAutomationOptions> options,
-    IWebhookService webhookService,
     IAmazonS3? s3Client = null)
 {
     private readonly OpsAutomationOptions _options = options.Value;
@@ -56,14 +54,6 @@ public sealed partial class ArtifactCleanupJob(
 
         db.Artifacts.RemoveRange(expired);
         await db.SaveChangesAsync(ct);
-
-        await webhookService.NotifySystemAnnouncementAsync("SystemAnnouncement", new
-        {
-            action = "artifact-cleanup",
-            deletedCount = expired.Count,
-            retentionDays,
-            at = DateTime.UtcNow
-        }, ct);
 
         return expired.Count;
     }

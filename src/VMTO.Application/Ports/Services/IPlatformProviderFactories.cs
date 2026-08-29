@@ -1,14 +1,20 @@
-using VMTO.Application.Ports.Services;
 using VMTO.Domain.Aggregates.Connection;
 
 namespace VMTO.Application.Ports.Services;
 
 public interface ISourcePlatformProviderFactory
 {
-    ISourcePlatformPort GetProvider(ConnectionType type);
+    IVmSourcePort GetProvider(PlatformKind type);
 }
 
 public interface ITargetPlatformProviderFactory
 {
-    ITargetPlatformPort GetProvider(ConnectionType type);
+    IVmTargetPort GetProvider(PlatformKind type);
+}
+
+public interface IPlatformAdapterRegistry
+{
+    IVmSourcePort GetSource(PlatformKind type);
+    IVmTargetPort GetTarget(PlatformKind type);
+    void EnsureRegistered();
 }

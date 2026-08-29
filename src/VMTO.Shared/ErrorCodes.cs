@@ -31,6 +31,13 @@ public static class ErrorCodes
         public const string LimitExceeded = "LIC_LIMIT_EXCEEDED";
     }
 
+    public static class Plan
+    {
+        public const string Incompatible = "PLAN_INCOMPATIBLE";
+        public const string NoDisks = "PLAN_NO_DISKS";
+        public const string IncrementalNotSupported = "PLAN_INCREMENTAL_NOT_SUPPORTED";
+    }
+
     public static class General
     {
         public const string Unauthorized = "UNAUTHORIZED";

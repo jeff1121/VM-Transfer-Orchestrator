@@ -32,10 +32,14 @@ public static class DependencyInjection
 
         // EF Core + PostgreSQL
         var connectionString = configuration.GetConnectionString("PostgreSQL")
+            ?? configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("PostgreSQL connection string is required.");
 
         services.AddDbContext<AppDbContext>(options =>
-            options.UseNpgsql(connectionString));
+        {
+            options.UseNpgsql(connectionString);
+            options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        });
 
         // Repositories
         services.AddScoped<IJobRepository, JobRepository>();
@@ -67,14 +71,12 @@ public static class DependencyInjection
                 configuration["DataProtection:KeysPath"] ?? "/app/keys"))
             .SetApplicationName("VMTO");
         services.AddSingleton<IEncryptionService, DataProtectionEncryptionService>();
+        services.AddScoped<ILicenseService, LicenseService>();
 
         // Notifications (SignalR)
         services.AddSignalR();
         services.AddScoped<INotificationService, SignalRNotificationService>();
 
-        // Webhook 通知
-        services.AddHttpClient("Webhook", c => c.Timeout = TimeSpan.FromSeconds(10));
-        services.AddScoped<IWebhookService, WebhookService>();
         services.AddScoped<CircuitBreakerNotifier>();
         services.AddScoped<SelfHealingService>();
         services.AddScoped<ArtifactCleanupJob>();
@@ -100,6 +102,7 @@ public static class DependencyInjection
 
         services.AddScoped<ISourcePlatformProviderFactory, SourcePlatformProviderFactory>();
         services.AddScoped<ITargetPlatformProviderFactory, TargetPlatformProviderFactory>();
+        services.AddScoped<IPlatformAdapterRegistry, PlatformAdapterRegistry>();
 
         // Qemu-img
         services.AddSingleton<IQemuImgService, QemuImgService>();

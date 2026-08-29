@@ -21,7 +21,7 @@ public sealed class ResumeJobHandlerTests
     private readonly ResumeJobHandler _handler;
 
     private static readonly StorageTarget DefaultStorage = new(StorageType.S3, "http://localhost:9000", "bucket", "us-east-1");
-    private static readonly MigrationOptions DefaultOptions = new(ArtifactFormat.Qcow2, false, true, 3);
+    private static readonly MigrationOptions DefaultOptions = new(ArtifactFormat.Qcow2, true, 3);
 
     public ResumeJobHandlerTests()
     {

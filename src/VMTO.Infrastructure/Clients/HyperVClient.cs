@@ -112,7 +112,7 @@ public sealed class HyperVClient : IHyperVClient
         }
     }
 
-    public async Task<Result<HyperVVmDetailsDto>> GetVmDetailsAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+    public async Task<Result<VmInspectionDto>> InspectAsync(Guid connectionId, string vmId, CancellationToken ct = default)
     {
         using var activity = ActivitySources.Default.StartActivity("hyperv.get_vm_details", ActivityKind.Client);
         activity?.SetTag("vmto.connection.id", connectionId.ToString());
@@ -127,17 +127,17 @@ public sealed class HyperVClient : IHyperVClient
                 activity?.SetTag("http.status_code", (int)response.StatusCode);
                 response.EnsureSuccessStatusCode();
 
-                var details = await response.Content.ReadFromJsonAsync<HyperVVmDetailsDto>(token);
+                var details = await response.Content.ReadFromJsonAsync<VmInspectionDto>(token);
                 if (details is null)
-                    return Result<HyperVVmDetailsDto>.Failure(ErrorCodes.General.InternalError, "Failed to parse VM details.");
+                    return Result<VmInspectionDto>.Failure(ErrorCodes.General.InternalError, "Failed to parse VM details.");
 
-                return Result<HyperVVmDetailsDto>.Success(details);
+                return Result<VmInspectionDto>.Success(details);
             }, ct);
         }
         catch (Exception ex)
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            return Result<HyperVVmDetailsDto>.Failure(
+            return Result<VmInspectionDto>.Failure(
                 ErrorCodes.General.InternalError, $"Failed to get Hyper-V VM details: {ex.Message}");
         }
     }
@@ -213,7 +213,8 @@ public sealed class HyperVClient : IHyperVClient
     }
 
     public Task<Result<Stream>> ExportDiskAsync(Guid connectionId, string vmId, string diskKey, IProgress<int>? progress = null, CancellationToken ct = default)
-    {
-        return ExportVhdxAsync(connectionId, vmId, diskKey, progress, ct);
-    }
+        => ExportVhdxAsync(connectionId, vmId, diskKey, progress, ct);
+
+    public Task<Result> CleanupExportAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+        => Task.FromResult(Result.Success());
 }

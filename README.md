@@ -1,74 +1,40 @@
-Test2
-For video recording
-###
-Edit again
-Generate for testing data
-####
-Last but not least
-###
-want to know Issues #43
-###
-test PR resolution chart
-###
-test SDT owner
-###
-test resolution-3
-don't mess up with main
-ready to go
-test resolution-2
-test resolution
-###
-Test--2
-Test more--1
-###
-Want to test new PR but merge without approve
-test right now
-#####
-Want to add comments
-Add few more changes
-####
-Let's get started!!
+<p align="center">
+  <img src="docs/images/logo.png" alt="VMTO Logo" width="180" />
+</p>
 
-This testing is for new branch 
-####
-Add close status and use workflow
-
-start to test
-
-###
-Changed a lot...........02
-###
-Changed a lot...........01
-
-####
-Whole new test 01..........
-Whole new test 02..........
-Whole new test 03..........
-
-####
-test-PR-7
-
-test-PR-8
-
-
-###
-test-PR-4
-
-test-PR-5
-
-test-PR-6
-####
-test-PR-1
-
-test-PR-2
-
-test-PR-3
 # VMTO — VM Transfer Orchestrator
 
-> **版本：** 0.2.0  
+> **版本：** `v0.3.0-preview.1`  
 > **授權：** MIT License
 
-企業級虛擬機遷移編排工具，支援 **vSphere / Hyper-V → Proxmox VE** 遷移。透過 Saga 編排模式自動完成 VMDK/VHDX 匯出、磁碟格式轉換、物件儲存上傳、匯入 PVE 與驗證等完整流程，並提供即時進度追蹤與中斷 / 重試機制。
+企業級虛擬機遷移編排工具。目前可運作的生產路徑是 **vSphere → Proxmox VE**（含 mock）。**Hyper-V → Proxmox VE** 仍在 Phase 13：13a 做通用 Source/Target 與 plan-driven Saga，13b 才是真 Windows agent 與開機驗證。請勿把現有 Hyper-V UI / mock client 當成 MVP 完成。
+
+---
+
+## 📢 最新版本更新日誌 (Changelog - v0.3.0-preview.1)
+
+本預覽版本包含重大的架構演進、全離線 16 碼企業授權、現代化毛玻璃/新擬態視覺升級與互動體驗最佳化：
+
+### 🌟 核心新功能與架構演進
+- **Phase 13a 通用多平台遷移架構 (ADR-006 ~ 018)**：
+  - 引進來源／目標平台隔離抽象介面（`IVmSourcePort`、`IVmTargetPort`）與 `PlatformKind`。
+  - 實作動態遷移計畫建構器（`MigrationPlanBuilder`）與計畫驅動之 MassTransit Saga，修復歷史流程綁定問題。
+  - 支援目標全量自動回滾（`IVmTargetPort.RollbackAsync`）與來源暫存清理機制。
+- **純離線 16 碼商業授權系統 (ADR-019)**：
+  - 支援在無網際網路連線（Air-Gapped）之機房環境，透過 16 碼 Crockford Base32 格式（`XXXX-XXXX-XXXX-XXXX`）搭配 48-bit HMAC-SHA256 數位簽章即時離線啟用。
+  - 內嵌版權方案（Standard / Enterprise）、並行任務上限、有效期限與功能模組旗標。
+- **全新現代化 Glassmorphism & Neumorphism 前端設計**：
+  - 全新六角立體科技感 VM 遷移 Logo（支援 Favicon、登入頁、側邊欄及文檔）。
+  - **認證佈局隔離（Auth Layout Isolation）**：未登入與登入頁面完全隱藏側邊欄與上方導覽，呈現純淨毛玻璃登入卡。
+  - **動態迷你側邊欄（Dynamic Mini-Sidebar）**：支援 76px 簡約圖示模式與 260px 展開模式，具備 Hover 懸停動態展開與圖釘（📌）固定切換。
+  - **通知抽屜互動升級**：支援透明毛玻璃 Backdrop 遮罩、Click-Outside 點擊外部任意處自動關閉、專屬關閉按鈕與 `Esc` 鍵快捷退出。
+  - **狀態感知授權管理介面（State-Aware License UX）**：直觀呈現已啟用方案、遮罩序號（`5526-••••-••••-48cc`）、並行配額，並提供折疊式續約/更換序號按鈕。
+- **語系與功能精簡優化**：
+  - 全面清除簡體中文（`zh-CN`），專注提供高品質繁體中文（`zh-TW`，預設）與英文（`en-US`）。
+  - 徹底移除未使用的 Webhooks 模組，大幅精簡系統架構與後端負擔。
+- **全套品質與自動化測試保證**：
+  - 通過 **203 個**後端單元與整合測試（含 PostgreSQL 真實容器測試）。
+  - 通過 Playwright 跨主題、跨解析度之端對端瀏覽器自動化驗證。
 
 ---
 
@@ -76,11 +42,12 @@ test-PR-3
 
 VMTO 採用 **Clean Architecture + DDD (Domain-Driven Design)** 分層設計，搭配 **Event-driven** 架構處理長時間非同步遷移任務：
 
-- **Domain 層**：聚合根（MigrationJob、Connection、Artifact、License）、強型別 MigrationPlan、值物件、領域事件
-- **Application 層**：CQRS 命令 / 查詢、DTO、平台獨立 Port 介面（ISourcePlatformPort, ITargetPlatformPort）
-- **Infrastructure 層**：EF Core 持久化、vSphere / Hyper-V / PVE 客戶端與 Provider Factory、S3 儲存、加密服務
+- **Domain 層**：聚合根（MigrationJob、Connection、Artifact、License）、由 Source × Target × Options 衍生的 Migration Plan、值物件、領域事件
+- **Application 層**：CQRS 命令 / 查詢、DTO、來源／目標 Port（13a 將現有 `ISourcePlatformPort` 鷹架對齊 plan 契約）
+- **Infrastructure 層**：EF Core 持久化、vSphere / PVE 客戶端、Hyper-V mock／未來 mTLS agent、S3 儲存、加密服務
 - **API 層**：ASP.NET Core Minimal API，提供 REST 端點與 SignalR 即時推送
-- **Worker 層**：MassTransit 消費者 + Saga 狀態機，編排多步驟遷移流程
+- **Worker 層**：MassTransit 消費者 + Saga。13a 必須改成依 plan snapshot 推進，不得再寫死 `ExportVhdx`
+- **詞彙**：見根目錄 [`CONTEXT.md`](CONTEXT.md)
 
 ### C4 Level 1 — System Context
 
@@ -198,14 +165,16 @@ npm run dev
 
 ---
 
-## 最新完成能力（Phase 13 / Epic 13）
+## 目前狀態（2026-08-28）
 
-- **Hyper-V 來源平台整合與平台抽象化**
-  - **Hyper-V 離線匯出**：支援 Hyper-V 關機 VM 之 `.vhdx` 離線匯出、轉換與編排至 Proxmox VE。
-  - **Hyper-V Discovery & Pre-flight**：支援 Hyper-V VM 探索、規格細節檢索，以及遷移前之 API、VM 狀態、磁碟權限與儲存空間 Pre-flight 前置檢查。
-  - **平台獨立 Port 介面 (ISourcePlatformPort / ITargetPlatformPort)**：解耦 Hypervisor 特化邏輯，引入 Provider Factory 動態調度來源與目標平台 Client。
-  - **強型別 MigrationPlan**：使用 `MigrationStepType` enum 與 `MigrationPlan` Value Object 取代魔術字串，確保領域與 Saga 狀態轉移之強型別安全。
-  - **前端 UX 與 OpenAPI 規格**：完成 Connection 與 NewJob 面板適配（Pre-flight 檢核面板、Hyper-V 連線引導）、多國語言 (i18n) 以及 OpenAPI 3.0 規格全面同步。
+| 階段 | 狀態 | 真實含義 |
+| --- | --- | --- |
+| Phase 1–12 | 完成 | 含可觀測性、韌性、前端 UX、Ops API |
+| Phase 13a | 進行中 | 通用 Source/Target、`PlatformKind`、plan-driven Saga、修 vSphere 回歸、文件說實話。Hyper-V 維持 mock |
+| Phase 13b | 未開始 | 單機 Hyper-V host 上的 mTLS agent、全碟離線匯出、轉檔、PVE 開機、Target rollback |
+| Phase 14 | 未開始 | 真 vSphere + 真 Hyper-V 試點。不加第三個 Platform |
+
+現有 Hyper-V 程式（Port、`ExportVhdx` consumer、UI pre-flight）是**鷹架**，不是 MVP。已知回歸：`MigrationJobSaga` 在 `JobStarted` 一律發 `ExportVhdxMessage`，會弄斷 vSphere。細節見 [`plan.md`](plan.md)、[`Tasks.md`](Tasks.md)、[`CONTEXT.md`](CONTEXT.md)。
 
 ---
 
@@ -366,6 +335,35 @@ VMTO 採用集中式版本管理，所有元件版本統一由以下檔案控制
 | [ADR-002](docs/adr/002-hangfire-scheduling.md) | Hangfire 輔助排程 | 保留 Hangfire 處理定期清理、增量同步排程等 cron 類任務，與 MassTransit 互補。 |
 | [ADR-003](docs/adr/003-minio-default-storage.md) | MinIO 預設儲存 | 選用 MinIO 作為預設物件儲存，S3 相容 API、Docker Compose 自帶、可無縫切換至 Ceph。 |
 | [ADR-004](docs/adr/004-dataprotection-encryption.md) | DataProtection 加密 | 使用 ASP.NET DataProtection 加密連線密碼，預留 Vault / KMS 介面。 |
+| [ADR-005](docs/adr/005-native-aot-evaluation.md) | Native AOT 評估 | EF Core / MassTransit 暫不走 AOT，維持 JIT。 |
+| [ADR-006](docs/adr/006-plan-is-multi-platform-contract.md) | plan.md 是契約 | 現有 Hyper-V 捷徑是鷹架，不是產品形狀。 |
+| [ADR-007](docs/adr/007-connection-holds-platform.md) | Connection 持有 Platform | Transport 是設定，不是新 Platform。 |
+| [ADR-008](docs/adr/008-phase-13-split.md) | Phase 13 拆 13a / 13b | 架構與真 Hyper-V host 分開交付。 |
+| [ADR-009](docs/adr/009-hyperv-mtls-agent.md) | Hyper-V 用 mTLS agent | Linux Worker 不跑 `Export-VM`、不講 WinRM。 |
+| [ADR-010](docs/adr/010-hyperv-standalone-host.md) | 一 Connection 一台獨立 host | 叢集 / CSV / SCVMM 範圍外。 |
+| [ADR-011](docs/adr/011-plan-is-derived.md) | Plan 由系統衍生 | 操作者不選 named strategy；刪 `HyperVOffline`。 |
+| [ADR-012](docs/adr/012-job-migrates-all-selected-disks.md) | 一個 Job 遷一台 VM 的碟 | 13b 多碟在同一 Job。 |
+| [ADR-013](docs/adr/013-all-or-nothing-target-rollback.md) | 目標全有或全無 | 失敗 rollback 整台 Target VM。 |
+| [ADR-014](docs/adr/014-source-is-never-deleted.md) | 來源永不刪改 | 刪除 `DeleteSourceAfter`。 |
+| [ADR-015](docs/adr/015-verify-is-checksum-and-running.md) | 成功 = checksum + running | Guest 健康不是自動閘門。 |
+| [ADR-016](docs/adr/016-all-supported-disks.md) | 沒有磁碟 picker | 不支援碟讓整台 VM 不合格。 |
+| [ADR-017](docs/adr/017-plan-driven-saga-in-13a.md) | 13a 交付 plan-driven Saga | 不接受只分支 Vmdk/Vhdx 的 hotfix 當架構。 |
+| [ADR-018](docs/adr/018-phase-14-is-real-pilot.md) | Phase 14 是真機試點 | 不加 KVM / 叢集 / 增量。 |
+| [ADR-019](docs/adr/019-offline-16char-license-key.md) | 16 碼離線授權碼架構 | 採用 Crockford Base32 與 48-bit HMAC-SHA256，支援全離線 Air-Gapped 啟用。 |
+
+---
+
+## 商業授權與版本功能比較
+
+VMTO 支援純離線（Air-Gapped）16 碼授權金鑰（`XXXX-XXXX-XXXX-XXXX`）啟動機制。以下為未授權模式與商業版之完整功能差異：
+
+| 評估維度 | ⚪ 未授權 / 開發者模式 (Unlicensed / Developer Mode) | 🟢 已啟用商業授權 (Standard / Enterprise) |
+| :--- | :--- | :--- |
+| **並行遷移任務數 (Max Concurrency)** | **嚴格限制 1~2 個任務**。<br>若同時啟動多個任務，系統會拒絕或強制排隊阻塞。 | **解鎖 5 ~ 20+ 個並行任務**（依授權碼內嵌之位元數決定），支援多主機同時大規模平行遷移。 |
+| **來源平台支援 (Source Platforms)** | 僅能使用基礎單一來源（如標準 vSphere）。 | **解鎖全平台來源**（含 **Hyper-V 離線匯出**、多硬碟遷移、Pre-flight 深度檢查）。 |
+| **增量同步與 CBT (Incremental Replication)** | 僅支援全量複製（Full Copy）；<br>增量策略選項會被鎖定並提示需 Enterprise 授權。 | **解鎖 Changed Block Tracking (CBT)**、Delta 增量鏡像拉取與最終停機切換（Cutover）。 |
+| **自癒與維運自動化 (Self-Healing & Ops)** | 僅提供基礎手動重試；<br>背景自癒、自動重試暫時性錯誤為關閉狀態。 | **解鎖生產級自癒機制**（卡住任務自動復原、暫時性網路抖動智慧自動重試、S3 資料庫自動備份）。 |
+| **歷史日誌與稽核 (Audit Trail & Export)** | 僅保留基礎即時日誌；<br>不支援 CSV 批次匯出。 | **完整保留全鏈路稽核時間軸**，支援合規 CSV 匯出與永久記錄。 |
 
 ---
 
@@ -378,6 +376,8 @@ VMTO 採用集中式版本管理，所有元件版本統一由以下檔案控制
 | [增量同步架構](docs/incremental-sync.md) | CBT 增量同步設計文件 |
 | [OpenAPI 規格](docs/openapi.yaml) | API 介面規格 |
 | [災難復原手冊](docs/disaster-recovery.md) | 備份、還原、復原驗證流程 |
+| [領域詞彙](CONTEXT.md) | Source / Target / Platform / Plan 等 ubiquitous language |
+| [多平台遷移計畫](plan.md) | Phase 13 契約與 13a / 13b / 14 切線 |
 
 ---
 
@@ -388,9 +388,9 @@ VMTO 採用集中式版本管理，所有元件版本統一由以下檔案控制
 1. 在 `infra/.env` 中設定 `MOCK_MODE=true`
 2. 或在 `appsettings.Development.json` 中設定對應開關
 
-Mock 模式下，`MockVSphereClient` 與 `MockPveClient` 會模擬匯出 / 匯入操作，回傳模擬進度與假資料，適合用於：
+Mock 模式下，`MockVSphereClient`、`MockPveClient` 與 `MockHyperVClient` 會模擬匯出 / 匯入操作。Hyper-V mock **不是** 13b 完成的證據。適合用於：
 - 開發與除錯前端 UI
-- 測試 Saga 編排流程
+- 測試 Saga 編排流程（13a 修復後，vSphere mock 必須仍能跑通）
 - CI/CD 管線驗證
 - Demo 展示
 

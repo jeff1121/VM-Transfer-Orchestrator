@@ -22,24 +22,25 @@ public sealed class DiscoveryAndPreFlightHandlerTests
     [Fact]
     public async Task GetHyperVVmDetailsHandler_SuccessfulCheck_ReturnsVmDetails()
     {
-        var connection = new Connection("hyperv-prod", ConnectionType.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
+        var connection = new Connection("hyperv-prod", PlatformKind.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
 
-        var expectedDetails = new HyperVVmDetailsDto("hv-vm-01", "win-server-01", "Off", 4, 8192, "Windows Server 2022", 0, []);
-        _hyperVClient.GetVmDetailsAsync(connection.Id, "hv-vm-01", Arg.Any<CancellationToken>())
-            .Returns(Result<HyperVVmDetailsDto>.Success(expectedDetails));
+        var inspection = new VmInspectionDto("hv-vm-01", "win-server-01", "Off", 4, 8192, "Windows Server 2022", 0, false, []);
+        _hyperVClient.InspectAsync(connection.Id, "hv-vm-01", Arg.Any<CancellationToken>())
+            .Returns(Result<VmInspectionDto>.Success(inspection));
 
         var handler = new GetHyperVVmDetailsHandler(_connectionRepository, _hyperVClient);
         var result = await handler.HandleAsync(new GetHyperVVmDetailsQuery(connection.Id, "hv-vm-01"));
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Be(expectedDetails);
+        result.Value!.Id.Should().Be("hv-vm-01");
+        result.Value.Name.Should().Be("win-server-01");
     }
 
     [Fact]
     public async Task RunPreFlightCheckHandler_SuccessfulCheck_ReturnsPreFlightResult()
     {
-        var connection = new Connection("hyperv-prod", ConnectionType.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
+        var connection = new Connection("hyperv-prod", PlatformKind.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
 
         var expectedResult = new PreFlightCheckResultDto(connection.Id, "hv-vm-01", true, []);
@@ -56,14 +57,14 @@ public sealed class DiscoveryAndPreFlightHandlerTests
     [Fact]
     public async Task ListVmsHandler_ForHyperVConnection_CallsProviderFactory()
     {
-        var connection = new Connection("hyperv-prod", ConnectionType.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
+        var connection = new Connection("hyperv-prod", PlatformKind.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
 
         IReadOnlyList<VmInfoDto> expectedVms = [new VmInfoDto("hv-vm-01", "win-server-01", 4, 8192, ["disk-0"])];
         var sourceFactory = Substitute.For<ISourcePlatformProviderFactory>();
         var sourcePort = Substitute.For<ISourcePlatformPort>();
 
-        sourceFactory.GetProvider(ConnectionType.HyperV).Returns(sourcePort);
+        sourceFactory.GetProvider(PlatformKind.HyperV).Returns(sourcePort);
         sourcePort.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
             .Returns(Result<IReadOnlyList<VmInfoDto>>.Success(expectedVms));
 

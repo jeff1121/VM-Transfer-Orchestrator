@@ -78,9 +78,10 @@ services:
     build:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.api
-    ports: ["5000:8080"]
+    ports: ["5001:8080"]
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__PostgreSQL=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
       - ConnectionStrings__Redis=redis:6379
       - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-vmto}:${RABBITMQ_PASS:-vmto_dev_pass}@rabbitmq:5672
@@ -109,6 +110,7 @@ services:
       dockerfile: infra/dockerfiles/Dockerfile.worker
     stop_grace_period: 90s
     environment:
+      - ConnectionStrings__PostgreSQL=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-vmto};Username=${POSTGRES_USER:-vmto};Password=${POSTGRES_PASSWORD:-vmto_dev_pass}
       - ConnectionStrings__Redis=redis:6379
       - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USER:-vmto}:${RABBITMQ_PASS:-vmto_dev_pass}@rabbitmq:5672
@@ -137,7 +139,7 @@ services:
     build:
       context: ..
       dockerfile: infra/dockerfiles/Dockerfile.frontend
-    ports: ["8080:80"]
+    ports: ["8080:8080"]
     depends_on: [api]
 
 volumes:

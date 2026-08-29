@@ -81,7 +81,9 @@ export function useSignalR() {
     }
 
     const conn = new signalR.HubConnectionBuilder()
-      .withUrl('/hubs/migration')
+      .withUrl('/hubs/migration', {
+        accessTokenFactory: () => localStorage.getItem('vmto_token') || '',
+      })
       .withAutomaticReconnect(reconnectDelaysMs)
       .build()
 

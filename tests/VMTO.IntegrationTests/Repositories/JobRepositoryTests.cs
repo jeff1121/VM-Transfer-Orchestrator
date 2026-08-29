@@ -46,7 +46,7 @@ public sealed class JobRepositoryTests(PostgreSqlFixture fixture)
         await using var context = CreateContext();
         var repo = new JobRepository(context);
         var job = CreateTestJob();
-        job.AddStep("ExportVmdk", 1);
+        job.AddStep("ExportDisk", 1);
         job.AddStep("ConvertDisk", 2);
         await repo.AddAsync(job);
 
@@ -58,7 +58,7 @@ public sealed class JobRepositoryTests(PostgreSqlFixture fixture)
         // Assert
         loaded.Should().NotBeNull();
         loaded!.Steps.Should().HaveCount(2);
-        loaded.Steps[0].Name.Should().Be("ExportVmdk");
+        loaded.Steps[0].Name.Should().Be("ExportDisk");
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class JobRepositoryTests(PostgreSqlFixture fixture)
     private static MigrationJob CreateTestJob()
     {
         var storageTarget = new StorageTarget(StorageType.S3, "http://localhost:9000", "test-bucket");
-        var options = new MigrationOptions(ArtifactFormat.Qcow2, false, true, 3);
+        var options = new MigrationOptions(ArtifactFormat.Qcow2, true, 3);
         return new MigrationJob(Guid.NewGuid(), Guid.NewGuid(), storageTarget, MigrationStrategy.FullCopy, options);
     }
 }
