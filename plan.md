@@ -109,6 +109,7 @@ Sprints 0–1 are **13a**. Sprints 2–4 are **13b** except where a UI/API stub 
   - **Auth Layout Isolation**: Hide sidebars, topbars, and navigation links on login / unauthenticated routes, showing only the centered glassmorphic card.
   - **Dynamic Mini-Sidebar & Pinning**: Provide 72px compact icon mode and 260px expanded mode with hover-to-expand and persistent pin/lock toggle.
   - **Notification Drawer Click-Outside**: Support backdrop overlay, click-outside dismissal, close button, and `Esc` key dismissal.
+  - **NeuSelect Glassmorphic Custom Dropdown**: Replace OS-native select elements with custom floating popover menus featuring glassmorphism blur, soft neumorphic inset triggers, rotated chevrons, active checkmarks, and click-outside dismissal.
 - Enforce feature gating and concurrency limit checks in `CreateJobHandler` based on decoded license capabilities.
 - Add metrics segmented by source/target platform, audit events, cleanup jobs, structured error classifications, and operator runbooks.
 - Complete an interoperability matrix and staged pilot with non-production VMs.

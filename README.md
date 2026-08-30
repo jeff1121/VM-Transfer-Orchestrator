@@ -4,16 +4,16 @@
 
 # VMTO — VM Transfer Orchestrator
 
-> **版本：** `v0.3.0-preview.1`  
+> **版本：** `v0.3.0-preview.2`  
 > **授權：** MIT License
 
 企業級虛擬機遷移編排工具。目前可運作的生產路徑是 **vSphere → Proxmox VE**（含 mock）。**Hyper-V → Proxmox VE** 仍在 Phase 13：13a 做通用 Source/Target 與 plan-driven Saga，13b 才是真 Windows agent 與開機驗證。請勿把現有 Hyper-V UI / mock client 當成 MVP 完成。
 
 ---
 
-## 📢 最新版本更新日誌 (Changelog - v0.3.0-preview.1)
+## 📢 最新版本更新日誌 (Changelog - v0.3.0-preview.2)
 
-本預覽版本包含重大的架構演進、全離線 16 碼企業授權、現代化毛玻璃/新擬態視覺升級與互動體驗最佳化：
+本預覽版本包含重大的架構演進、全離線 16 碼企業授權、現代化毛玻璃/新擬態視覺升級、NeuSelect 自定義下拉選單與全站互動體驗最佳化：
 
 ### 🌟 核心新功能與架構演進
 - **Phase 13a 通用多平台遷移架構 (ADR-006 ~ 018)**：
@@ -23,6 +23,12 @@
 - **純離線 16 碼商業授權系統 (ADR-019)**：
   - 支援在無網際網路連線（Air-Gapped）之機房環境，透過 16 碼 Crockford Base32 格式（`XXXX-XXXX-XXXX-XXXX`）搭配 48-bit HMAC-SHA256 數位簽章即時離線啟用。
   - 內嵌版權方案（Standard / Enterprise）、並行任務上限、有效期限與功能模組旗標。
+- **NeuSelect 毛玻璃新擬態下拉選單（`NeuSelect.vue`）**：
+  - 徹底替換瀏覽器 OS 原生灰色 `<select>`，打造專屬浮動快顯選單（Floating Popover Menu）。
+  - 具備新擬態凹陷微浮雕觸發框、動態 180° 旋轉箭頭指示器、毛玻璃（`backdrop-filter: blur(24px)`）背景與柔和懸浮陰影。
+  - 支援選項 Hover 漸層高亮、已選項目打勾（`✓`）與專屬圖示（如 🇹🇼/🇺🇸、🌐/🪟/⚡）。
+  - 支援 Click-Outside 點擊外部自動收合與鍵盤方向鍵導航（A11y）。
+  - 全面套用至連線管理（平台類型）、設定（語言切換）、新增任務（來源/目標連線、VM 選單、儲存庫、策略、格式）與稽核日誌（分頁筆數）。
 - **全新現代化 Glassmorphism & Neumorphism 前端設計**：
   - 全新六角立體科技感 VM 遷移 Logo（支援 Favicon、登入頁、側邊欄及文檔）。
   - **認證佈局隔離（Auth Layout Isolation）**：未登入與登入頁面完全隱藏側邊欄與上方導覽，呈現純淨毛玻璃登入卡。

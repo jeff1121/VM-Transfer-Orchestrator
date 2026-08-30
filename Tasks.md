@@ -618,6 +618,7 @@
     - [x] 認證頁面佈局隔離（未登入/Login 路由不渲染 Sidebar、Topbar 與導覽選單）
     - [x] 動態迷你側邊欄（72px Mini Mode 與 260px 展開，支援 Hover 展開與 Pin 釘選切換）
     - [x] 通知抽屜（Drawer）互動強化（Backdrop 遮罩、Click-Outside 點擊外部關閉、Esc 快捷鍵關閉）
+    - [x] NeuSelect 毛玻璃新擬態下拉選單：封裝通用元件，支援自訂浮動視窗、旋轉箭頭、點擊外部自動收折，並全面套用至全站 Select 欄位
 
 - [ ] **13-US5.2** — 強化可觀測性與營運文件
   - [ ] 新增 source_platform、target_platform、adapter、plan_version 維度的 metrics/traces
