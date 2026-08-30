@@ -14,7 +14,6 @@ const password = ref('')
 const errorMessage = ref('')
 const loading = ref(false)
 
-// 處理登入表單提交
 async function handleLogin() {
   errorMessage.value = ''
   if (!userName.value || !password.value) {
@@ -40,34 +39,49 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="login-container">
-    <div class="login-card">
-      <h1>VMTO</h1>
-      <p class="subtitle">{{ t('auth.title') }}</p>
-      <form @submit.prevent="handleLogin">
-        <div class="field">
-          <label for="username">{{ t('auth.username') }}</label>
+  <div class="login-page">
+    <!-- Ambient Background Lighting Orbs -->
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+
+    <div class="glass-card login-card">
+      <div class="brand-header">
+        <div class="brand-badge">
+          <img src="/logo.png" alt="VMTO Logo" class="brand-logo-img" />
+        </div>
+        <h1 class="brand-title">VMTO</h1>
+        <p class="brand-subtitle">Transfer Orchestrator</p>
+      </div>
+
+      <form class="login-form" @submit.prevent="handleLogin">
+        <div class="form-group">
+          <label for="username" class="form-label">{{ t('auth.username') }}</label>
           <input
             id="username"
             v-model="userName"
             type="text"
+            class="neu-input"
             :placeholder="t('auth.username')"
             autocomplete="username"
           />
         </div>
-        <div class="field">
-          <label for="password">{{ t('auth.password') }}</label>
+
+        <div class="form-group">
+          <label for="password" class="form-label">{{ t('auth.password') }}</label>
           <input
             id="password"
             v-model="password"
             type="password"
+            class="neu-input"
             :placeholder="t('auth.password')"
             autocomplete="current-password"
           />
         </div>
-        <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-        <button type="submit" :disabled="loading">
-          {{ loading ? t('auth.loggingIn') : t('auth.login') }}
+
+        <div v-if="errorMessage" class="neu-banner banner-error">{{ errorMessage }}</div>
+
+        <button type="submit" class="neu-btn btn-primary full-width" :disabled="loading">
+          <span>{{ loading ? '⏳ ' + t('auth.loggingIn') : '🚀 ' + t('auth.login') }}</span>
         </button>
       </form>
     </div>
@@ -75,73 +89,146 @@ async function handleLogin() {
 </template>
 
 <style scoped>
-.login-container {
+.login-page {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: #1a1a2e;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-gradient);
+  padding: 20px;
 }
-.login-card {
-  background: var(--bg-elevated);
-  padding: 40px;
-  border-radius: 8px;
-  width: 360px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
-}
-.login-card h1 {
-  text-align: center;
-  color: #1a1a2e;
-  margin-bottom: 4px;
-}
-.subtitle {
-  text-align: center;
-  color: #888;
-  margin-bottom: 24px;
-  font-size: 0.9rem;
-}
-.field {
-  margin-bottom: 16px;
-}
-.field label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 0.9rem;
-  color: #333;
-}
-.field input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-  box-sizing: border-box;
-}
-.field input:focus {
-  outline: none;
-  border-color: #1a1a2e;
-}
-.error {
-  color: #e74c3c;
-  font-size: 0.85rem;
-  margin-bottom: 12px;
-}
-button {
-  width: 100%;
-  padding: 12px;
-  background: #1a1a2e;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-button:hover:not(:disabled) {
-  background: #16213e;
-}
-button:disabled {
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
   opacity: 0.6;
-  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.orb-1 {
+  width: 400px;
+  height: 400px;
+  background: var(--primary-glow);
+  top: 10%;
+  left: 15%;
+}
+
+.orb-2 {
+  width: 350px;
+  height: 350px;
+  background: rgba(236, 72, 153, 0.25);
+  bottom: 10%;
+  right: 15%;
+}
+
+.glass-card {
+  background: var(--bg-surface);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: 24px;
+  box-shadow: var(--neu-shadow);
+  padding: 44px 36px;
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+  z-index: 10;
+}
+
+.brand-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.brand-badge {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  filter: drop-shadow(0 8px 24px var(--primary-glow));
+}
+
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brand-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.neu-input {
+  width: 100%;
+  padding: 14px 18px;
+  background: var(--bg-surface-elevated);
+  border: var(--glass-border-subtle);
+  border-radius: 14px;
+  box-shadow: var(--neu-inset);
+  color: var(--text-primary);
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.neu-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow), var(--neu-inset);
+}
+
+.neu-btn {
+  padding: 14px;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 20px var(--primary-glow);
+  transition: all 0.25s ease;
+}
+
+.btn-primary { background: var(--primary-gradient); color: white; }
+.btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px var(--primary-glow); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.full-width {
+  width: 100%;
 }
 </style>

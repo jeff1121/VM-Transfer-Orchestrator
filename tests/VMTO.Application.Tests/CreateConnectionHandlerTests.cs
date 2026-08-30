@@ -29,7 +29,7 @@ public sealed class CreateConnectionHandlerTests
     {
         _encryptionService.Encrypt("my-secret").Returns(new EncryptedSecret("encrypted-value", "key-1"));
 
-        var command = new CreateConnectionCommand("vcenter-prod", ConnectionType.VSphere, "https://vcenter.local", "my-secret");
+        var command = new CreateConnectionCommand("vcenter-prod", PlatformKind.VSphere, "https://vcenter.local", "my-secret");
 
         var result = await _handler.HandleAsync(command);
 
@@ -47,7 +47,7 @@ public sealed class CreateConnectionHandlerTests
         Connection? savedConnection = null;
         await _connectionRepository.AddAsync(Arg.Do<Connection>(c => savedConnection = c), Arg.Any<CancellationToken>());
 
-        var command = new CreateConnectionCommand("pve-node", ConnectionType.ProxmoxVE, "https://pve.local:8006", "plain-secret");
+        var command = new CreateConnectionCommand("pve-node", PlatformKind.ProxmoxVE, "https://pve.local:8006", "plain-secret");
 
         await _handler.HandleAsync(command);
 

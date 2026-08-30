@@ -5,7 +5,7 @@ namespace VMTO.Application.DTOs;
 public sealed record ConnectionDto(
     Guid Id,
     string Name,
-    ConnectionType Type,
+    PlatformKind Type,
     string Endpoint,
     DateTime? ValidatedAt,
     DateTime CreatedAt);

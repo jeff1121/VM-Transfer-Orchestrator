@@ -38,7 +38,7 @@ public sealed class DeleteConnectionHandlerTests
     [Fact]
     public async Task HandleAsync_成功刪除Connection()
     {
-        var connection = new Connection("vcenter-prod", ConnectionType.VSphere, "https://vcenter.local", new EncryptedSecret("cipher", "key-1"));
+        var connection = new Connection("vcenter-prod", PlatformKind.VSphere, "https://vcenter.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
 
         var result = await _handler.HandleAsync(new DeleteConnectionCommand(connection.Id));

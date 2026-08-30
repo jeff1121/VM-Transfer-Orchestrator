@@ -17,6 +17,8 @@ public sealed class MigrationJob
     public StorageTarget StorageTarget { get; private set; }
     public MigrationStrategy Strategy { get; private set; }
     public MigrationOptions Options { get; private set; }
+    public MigrationPlan? Plan { get; private set; }
+    public string VmId { get; private set; }
     public JobStatus Status { get; private set; }
     public int Progress { get; private set; }
     public string? Result { get; private set; }
@@ -31,7 +33,9 @@ public sealed class MigrationJob
         StorageTarget storageTarget,
         MigrationStrategy strategy,
         MigrationOptions options,
-        CorrelationId? correlationId = null)
+        CorrelationId? correlationId = null,
+        string? vmId = null,
+        MigrationPlan? plan = null)
     {
         Id = Guid.NewGuid();
         CorrelationId = correlationId ?? CorrelationId.New();
@@ -40,9 +44,17 @@ public sealed class MigrationJob
         StorageTarget = storageTarget;
         Strategy = strategy;
         Options = options;
+        VmId = vmId ?? string.Empty;
+        Plan = plan;
         Status = JobStatus.Created;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = CreatedAt;
+
+        if (plan is not null)
+        {
+            foreach (var step in plan.Steps)
+                AddStep(step.Kind, step.Order);
+        }
 
         RaiseDomainEvent(new JobCreatedEvent(Id, CorrelationId));
     }
@@ -52,6 +64,18 @@ public sealed class MigrationJob
     {
         StorageTarget = null!;
         Options = null!;
+        VmId = string.Empty;
+    }
+
+    public Result ApplyPlan(MigrationPlan plan)
+    {
+        if (_steps.Count > 0)
+            return Shared.Result.Failure(ErrorCodes.Job.InvalidTransition, "Cannot apply a plan after steps exist.");
+
+        Plan = plan;
+        foreach (var step in plan.Steps)
+            AddStep(step.Kind, step.Order);
+        return Shared.Result.Success();
     }
 
     public void ClearDomainEvents() => _domainEvents.Clear();
@@ -120,7 +144,7 @@ public sealed class MigrationJob
         return Transition(Status, JobStatus.Succeeded);
     }
 
-    public void AddStep(MigrationStepType stepType, int order)
+    public void AddStep(MigrationStepKind stepType, int order)
     {
         var step = new JobStep(Id, stepType, order, Options.MaxRetries);
         _steps.Add(step);

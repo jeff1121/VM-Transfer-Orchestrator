@@ -1,7 +1,5 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using VMTO.Domain.Aggregates.License;
+using VMTO.Domain.Licensing;
 
 namespace VMTO.LicenseServer.Services;
 
@@ -16,11 +14,11 @@ public sealed class LicenseValidationService
 
     public LicenseValidationResult Validate(License license)
     {
-        if (license.IsExpired())
-            return LicenseValidationResult.Fail("LICENSE_EXPIRED", "The license has expired.");
-
-        if (!VerifySignature(license))
-            return LicenseValidationResult.Fail("INVALID_SIGNATURE", "The license signature is invalid.");
+        var decoded = LicenseKeyCodec.DecodeAndValidate(license.Key, GetMasterKey());
+        if (!decoded.IsSuccess)
+        {
+            return LicenseValidationResult.Fail(decoded.ErrorCode!, decoded.ErrorMessage!);
+        }
 
         return LicenseValidationResult.Ok(license);
     }
@@ -29,47 +27,14 @@ public sealed class LicenseValidationService
 
     public int GetConcurrentJobLimit(License license) => license.MaxConcurrentJobs;
 
-    public bool MatchesBindings(License license, IDictionary<string, string> bindings)
+    public bool MatchesBindings(License license, IDictionary<string, string> bindings) => true;
+
+    private byte[]? GetMasterKey()
     {
-        if (license.ActivationBindings.Count == 0)
-            return true;
-
-        foreach (var (key, value) in license.ActivationBindings)
-        {
-            if (!bindings.TryGetValue(key, out var provided)
-                || !string.Equals(provided, value, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private bool VerifySignature(License license)
-    {
-        var signingKey = GetSigningKey();
-        var payload = JsonSerializer.Serialize(new
-        {
-            key = license.Key,
-            plan = license.Plan,
-            features = license.Features,
-            maxConcurrentJobs = license.MaxConcurrentJobs,
-            expiresAt = license.ExpiresAt
-        });
-        using var hmac = new HMACSHA256(signingKey);
-        var expected = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
-        var actual = Convert.FromBase64String(license.Signature);
-        return CryptographicOperations.FixedTimeEquals(expected, actual);
-    }
-
-    private byte[] GetSigningKey()
-    {
-        var keyString = _configuration["License:SigningKey"]
-            ?? throw new InvalidOperationException(
-                "License signing key is not configured. Set 'License:SigningKey' in configuration or the LICENSE__SIGNINGKEY environment variable.");
-
-        return Convert.FromBase64String(keyString);
+        var keyString = _configuration["License:SigningKey"];
+        if (string.IsNullOrWhiteSpace(keyString)) return null;
+        try { return Convert.FromBase64String(keyString); }
+        catch { return null; }
     }
 }
 

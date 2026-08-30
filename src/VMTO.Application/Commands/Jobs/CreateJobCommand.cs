@@ -8,4 +8,6 @@ public sealed record CreateJobCommand(
     Guid TargetConnectionId,
     StorageTarget StorageTarget,
     MigrationStrategy Strategy,
-    MigrationOptions Options);
+    MigrationOptions Options,
+    string VmId,
+    IReadOnlyList<string>? DiskKeys = null);

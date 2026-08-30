@@ -1,25 +1,15 @@
 using Microsoft.Extensions.Logging;
-using VMTO.Application.Ports.Services;
 using VMTO.Shared.Telemetry;
 
 namespace VMTO.Infrastructure.Resilience;
 
-public sealed partial class CircuitBreakerNotifier(
-    IWebhookService webhookService,
-    ILogger<CircuitBreakerNotifier> logger)
+public sealed partial class CircuitBreakerNotifier(ILogger<CircuitBreakerNotifier> logger)
 {
-    public async ValueTask NotifyStateChangedAsync(string serviceName, string state, Exception? exception = null, CancellationToken ct = default)
+    public ValueTask NotifyStateChangedAsync(string serviceName, string state, Exception? exception = null, CancellationToken ct = default)
     {
         VmtoMetrics.SetCircuitBreakerState(serviceName, MapState(state));
         LogStateChanged(logger, serviceName, state, exception?.Message);
-
-        // 重用既有 Webhook 事件通道，避免引入新事件契約造成破壞性變更。
-        await webhookService.NotifyStepFailedAsync(
-            Guid.Empty,
-            Guid.Empty,
-            $"CircuitBreaker:{serviceName}",
-            exception is null ? $"state={state}" : $"state={state}, error={exception.Message}",
-            ct);
+        return ValueTask.CompletedTask;
     }
 
     private static int MapState(string state) => state switch

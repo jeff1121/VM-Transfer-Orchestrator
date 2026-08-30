@@ -26,8 +26,8 @@ public sealed class GetConnectionsHandlerTests
     [Fact]
     public async Task HandleAsync_成功列出Connections()
     {
-        var conn1 = new Connection("vcenter-prod", ConnectionType.VSphere, "https://vcenter.local", new EncryptedSecret("cipher1", "key-1"));
-        var conn2 = new Connection("pve-node", ConnectionType.ProxmoxVE, "https://pve.local:8006", new EncryptedSecret("cipher2", "key-2"));
+        var conn1 = new Connection("vcenter-prod", PlatformKind.VSphere, "https://vcenter.local", new EncryptedSecret("cipher1", "key-1"));
+        var conn2 = new Connection("pve-node", PlatformKind.ProxmoxVE, "https://pve.local:8006", new EncryptedSecret("cipher2", "key-2"));
         _connectionRepository.ListAsync(1, 10, Arg.Any<CancellationToken>())
             .Returns(new List<Connection> { conn1, conn2 });
 

@@ -26,10 +26,23 @@ public sealed class GetHyperVVmDetailsHandler : IQueryHandler<GetHyperVVmDetails
         if (connection is null)
             return Result<HyperVVmDetailsDto>.Failure(ErrorCodes.Connection.NotFound, $"找不到連線 {query.ConnectionId}。");
 
-        if (connection.Type != ConnectionType.HyperV)
+        if (connection.Type != PlatformKind.HyperV)
             return Result<HyperVVmDetailsDto>.Failure(ErrorCodes.Connection.ValidationFailed, "僅支援 Hyper-V 連線之詳細資訊查詢。");
 
-        return await _hyperVClient.GetVmDetailsAsync(query.ConnectionId, query.VmId, ct);
+        var inspection = await _hyperVClient.InspectAsync(query.ConnectionId, query.VmId, ct);
+        if (!inspection.IsSuccess)
+            return Result<HyperVVmDetailsDto>.Failure(inspection.ErrorCode!, inspection.ErrorMessage!);
+
+        var value = inspection.Value!;
+        return Result<HyperVVmDetailsDto>.Success(new HyperVVmDetailsDto(
+            value.Id,
+            value.Name,
+            value.State,
+            value.CpuCount,
+            value.MemoryBytes,
+            value.GuestOs ?? string.Empty,
+            value.CheckpointCount,
+            value.Disks.Select(d => new HyperVVmDiskInfoDto(d.DiskKey, d.Path, d.SizeBytes, d.Format)).ToList()));
     }
 }
 

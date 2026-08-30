@@ -19,6 +19,7 @@ LABEL org.opencontainers.image.title="VMTO API" \
       org.opencontainers.image.source="https://github.com/jeff1121/VM-Transfer-Orchestrator"
 WORKDIR /app
 COPY --from=build /app .
+RUN mkdir -p /app/keys && chown -R 10001:10001 /app
 USER 10001
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "VMTO.API.dll"]

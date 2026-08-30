@@ -7,7 +7,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
-using VMTO.Application.Ports.Services;
 using VMTO.Infrastructure.Ops;
 
 namespace VMTO.Infrastructure.Jobs;
@@ -16,7 +15,6 @@ public sealed partial class DatabaseBackupJob(
     IConfiguration configuration,
     IOptions<OpsAutomationOptions> options,
     ILogger<DatabaseBackupJob> logger,
-    IWebhookService webhookService,
     IAmazonS3? s3Client = null)
 {
     private readonly OpsAutomationOptions _options = options.Value;
@@ -54,14 +52,6 @@ public sealed partial class DatabaseBackupJob(
                 Key = key,
                 InputStream = stream,
                 ContentType = "application/sql"
-            }, ct);
-
-            await webhookService.NotifySystemAnnouncementAsync("SystemAnnouncement", new
-            {
-                action = "database-backup",
-                bucket,
-                key,
-                generatedAt = DateTime.UtcNow
             }, ct);
 
             return key;

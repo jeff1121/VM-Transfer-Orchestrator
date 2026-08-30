@@ -26,7 +26,7 @@ public sealed class CreateConnectionHandler : ICommandHandler<CreateConnectionCo
         // 加密密鑰
         var encryptedSecret = _encryptionService.Encrypt(command.Secret);
 
-        var connection = new Connection(command.Name, command.Type, command.Endpoint, encryptedSecret);
+        var connection = new Connection(command.Name, command.Type, command.Endpoint, encryptedSecret, command.MetadataJson);
 
         await _connectionRepository.AddAsync(connection, ct);
         return Result<Guid>.Success(connection.Id);

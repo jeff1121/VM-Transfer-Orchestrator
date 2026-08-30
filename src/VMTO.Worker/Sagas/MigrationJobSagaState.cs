@@ -10,7 +10,7 @@ public sealed class MigrationJobSagaState : SagaStateMachineInstance
     public Guid JobId { get; set; }
     public int CurrentStepIndex { get; set; }
     public List<string> StepNames { get; set; } = [];
-    public List<MigrationStepType> StepTypes { get; set; } = [];
+    public List<MigrationStepKind> StepTypes { get; set; } = [];
     public List<Guid> StepIds { get; set; } = [];
     public Guid SourceConnectionId { get; set; }
     public Guid TargetConnectionId { get; set; }
@@ -21,6 +21,9 @@ public sealed class MigrationJobSagaState : SagaStateMachineInstance
     public int Cores { get; set; }
     public int MemoryMb { get; set; }
     public Dictionary<string, string> StepOutputData { get; set; } = [];
+    public List<string> StepDiskKeys { get; set; } = [];
+    public string SourcePlatform { get; set; } = string.Empty;
+    public string TargetPlatform { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

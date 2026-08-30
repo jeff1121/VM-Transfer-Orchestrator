@@ -3,6 +3,13 @@ import { ref } from 'vue'
 import type { Job, JobProgress } from '@/types'
 import { jobsApi } from '@/api/jobs'
 
+interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 export const useJobsStore = defineStore('jobs', () => {
   const jobs = ref<Job[]>([])
   const loading = ref(false)
@@ -12,9 +19,17 @@ export const useJobsStore = defineStore('jobs', () => {
     loading.value = true
     error.value = null
     try {
-      const { data } = await jobsApi.list(page, pageSize, status)
-      jobs.value = data
+      const res = await jobsApi.list(page, pageSize, status)
+      const data = res.data as unknown as (Job[] | PaginatedResponse<Job>)
+      if (Array.isArray(data)) {
+        jobs.value = data
+      } else if (data && Array.isArray((data as PaginatedResponse<Job>).items)) {
+        jobs.value = (data as PaginatedResponse<Job>).items
+      } else {
+        jobs.value = []
+      }
     } catch (e) {
+      jobs.value = []
       error.value = e instanceof Error ? e.message : 'Failed to fetch jobs'
     } finally {
       loading.value = false
@@ -22,7 +37,7 @@ export const useJobsStore = defineStore('jobs', () => {
   }
 
   const updateFromProgress = (progress: JobProgress) => {
-    const idx = jobs.value.findIndex(j => j.id === progress.jobId)
+    const idx = jobs.value.findIndex((j) => j.id === progress.jobId)
     if (idx >= 0) {
       jobs.value[idx].status = progress.status
       jobs.value[idx].progress = progress.overallProgress

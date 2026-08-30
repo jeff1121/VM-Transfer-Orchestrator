@@ -26,7 +26,7 @@ public sealed class ConnectionRepositoryTests(PostgreSqlFixture fixture)
         // Arrange
         await using var context = CreateContext();
         var repo = new ConnectionRepository(context);
-        var conn = new Connection("test-vsphere", ConnectionType.VSphere, "https://vcenter.local", new EncryptedSecret("encrypted", "key-1"));
+        var conn = new Connection("test-vsphere", PlatformKind.VSphere, "https://vcenter.local", new EncryptedSecret("encrypted", "key-1"));
 
         // Act
         await repo.AddAsync(conn);
@@ -43,7 +43,7 @@ public sealed class ConnectionRepositoryTests(PostgreSqlFixture fixture)
         // Arrange
         await using var context = CreateContext();
         var repo = new ConnectionRepository(context);
-        var conn = new Connection("to-delete", ConnectionType.ProxmoxVE, "https://pve.local", new EncryptedSecret("encrypted"));
+        var conn = new Connection("to-delete", PlatformKind.ProxmoxVE, "https://pve.local", new EncryptedSecret("encrypted"));
         await repo.AddAsync(conn);
 
         // Act
@@ -60,7 +60,7 @@ public sealed class ConnectionRepositoryTests(PostgreSqlFixture fixture)
         // Arrange
         await using var context = CreateContext();
         var repo = new ConnectionRepository(context);
-        var conn = new Connection("to-validate", ConnectionType.VSphere, "https://vcenter.local", new EncryptedSecret("encrypted"));
+        var conn = new Connection("to-validate", PlatformKind.VSphere, "https://vcenter.local", new EncryptedSecret("encrypted"));
         await repo.AddAsync(conn);
 
         // Act — 標記為已驗證

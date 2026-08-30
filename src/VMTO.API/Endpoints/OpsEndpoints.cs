@@ -43,26 +43,15 @@ public sealed record ConnectionBackupDto(
     string CipherText,
     string? KeyId);
 
-public sealed record WebhookBackupDto(
-    string Name,
-    string Type,
-    string Target,
-    string Events,
-    bool IsEnabled,
-    string? CustomHeaders,
-    string? Secret);
-
 public sealed record OpsConfigBackupDto(
     DateTime ExportedAt,
     object Chaos,
-    ConnectionBackupDto[] Connections,
-    WebhookBackupDto[] Webhooks);
+    ConnectionBackupDto[] Connections);
 
 public sealed record OpsConfigRestoreRequest(
     bool ReplaceExisting,
-    ChaosControlRequest? Chaos,
     ConnectionBackupDto[] Connections,
-    WebhookBackupDto[] Webhooks);
+    ChaosControlRequest? Chaos);
 
 public static class OpsEndpoints
 {
@@ -263,22 +252,10 @@ public static class OpsEndpoints
                 c.EncryptedSecret.KeyId))
             .ToArrayAsync(ct);
 
-        var webhooks = await db.WebhookSubscriptions
-            .Select(w => new WebhookBackupDto(
-                w.Name,
-                w.Type,
-                w.Target,
-                w.Events,
-                w.IsEnabled,
-                w.CustomHeaders,
-                w.Secret))
-            .ToArrayAsync(ct);
-
         var payload = new OpsConfigBackupDto(
             DateTime.UtcNow,
             chaosPolicy.GetSnapshot(),
-            connections,
-            webhooks);
+            connections);
 
         return Results.Ok(payload);
     }
@@ -291,7 +268,6 @@ public static class OpsEndpoints
     {
         if (request.ReplaceExisting)
         {
-            db.WebhookSubscriptions.RemoveRange(db.WebhookSubscriptions);
             db.Connections.RemoveRange(db.Connections);
             await db.SaveChangesAsync(ct);
         }
@@ -299,7 +275,7 @@ public static class OpsEndpoints
         var newConnections = new List<Connection>();
         foreach (var dto in request.Connections)
         {
-            if (!Enum.TryParse<ConnectionType>(dto.Type, true, out var connectionType))
+            if (!Enum.TryParse<PlatformKind>(dto.Type, true, out var connectionType))
             {
                 return Results.BadRequest(new { code = "INVALID_CONNECTION_TYPE", message = $"不支援的連線類型：{dto.Type}" });
             }
@@ -312,22 +288,7 @@ public static class OpsEndpoints
             newConnections.Add(connection);
         }
 
-        var newWebhooks = request.Webhooks.Select(dto => new WebhookSubscription
-        {
-            Id = Guid.NewGuid(),
-            Name = dto.Name,
-            Type = dto.Type,
-            Target = dto.Target,
-            Events = dto.Events,
-            IsEnabled = dto.IsEnabled,
-            CustomHeaders = dto.CustomHeaders,
-            Secret = dto.Secret,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        }).ToArray();
-
         await db.Connections.AddRangeAsync(newConnections, ct);
-        await db.WebhookSubscriptions.AddRangeAsync(newWebhooks, ct);
         await db.SaveChangesAsync(ct);
 
         if (request.Chaos is not null)
@@ -342,7 +303,6 @@ public static class OpsEndpoints
         return Results.Ok(new
         {
             restoredConnections = newConnections.Count,
-            restoredWebhooks = newWebhooks.Length,
             replaceExisting = request.ReplaceExisting
         });
     }

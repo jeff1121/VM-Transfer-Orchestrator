@@ -118,8 +118,8 @@ public sealed class ValueObjectTests
     [Fact]
     public void MigrationOptions_相同值應相等()
     {
-        var a = new MigrationOptions(ArtifactFormat.Qcow2, false, true, 3);
-        var b = new MigrationOptions(ArtifactFormat.Qcow2, false, true, 3);
+        var a = new MigrationOptions(ArtifactFormat.Qcow2, true, 3);
+        var b = new MigrationOptions(ArtifactFormat.Qcow2, true, 3);
 
         a.Should().Be(b);
     }
@@ -127,8 +127,8 @@ public sealed class ValueObjectTests
     [Fact]
     public void MigrationOptions_不同值應不相等()
     {
-        var a = new MigrationOptions(ArtifactFormat.Qcow2, false, true, 3);
-        var b = new MigrationOptions(ArtifactFormat.Vmdk, true, false, 5);
+        var a = new MigrationOptions(ArtifactFormat.Qcow2, true, 3);
+        var b = new MigrationOptions(ArtifactFormat.Vmdk, false, 5);
 
         a.Should().NotBe(b);
     }
@@ -136,8 +136,8 @@ public sealed class ValueObjectTests
     [Fact]
     public void MigrationOptions_僅MaxRetries不同應不相等()
     {
-        var a = new MigrationOptions(ArtifactFormat.Qcow2, false, true, 3);
-        var b = new MigrationOptions(ArtifactFormat.Qcow2, false, true, 5);
+        var a = new MigrationOptions(ArtifactFormat.Qcow2, true, 3);
+        var b = new MigrationOptions(ArtifactFormat.Qcow2, true, 5);
 
         a.Should().NotBe(b);
     }

@@ -14,13 +14,13 @@ public sealed class JobRepository : IJobRepository
     public async Task<MigrationJob?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         return await _db.Jobs
-            .Include(j => j.Steps)
+            .Include(j => j.Steps.OrderBy(s => s.Order))
             .FirstOrDefaultAsync(j => j.Id == id, ct);
     }
 
     public async Task<IReadOnlyList<MigrationJob>> ListAsync(int page, int pageSize, JobStatus? status = null, CancellationToken ct = default)
     {
-        var query = _db.Jobs.Include(j => j.Steps).AsQueryable();
+        var query = _db.Jobs.Include(j => j.Steps.OrderBy(s => s.Order)).AsQueryable();
         if (status.HasValue)
             query = query.Where(j => j.Status == status.Value);
 

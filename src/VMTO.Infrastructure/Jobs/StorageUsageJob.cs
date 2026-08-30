@@ -2,7 +2,6 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
-using VMTO.Application.Ports.Services;
 using VMTO.Infrastructure.Ops;
 
 namespace VMTO.Infrastructure.Jobs;
@@ -10,7 +9,6 @@ namespace VMTO.Infrastructure.Jobs;
 public sealed class StorageUsageJob(
     IConfiguration configuration,
     IOpsSnapshotStore snapshotStore,
-    IWebhookService webhookService,
     IOptions<OpsAutomationOptions> options,
     IAmazonS3? s3Client = null)
 {
@@ -52,18 +50,6 @@ public sealed class StorageUsageJob(
             totalBytes >= _options.StorageUsageThresholdBytes);
 
         snapshotStore.AddStorageSnapshot(snapshot);
-        if (snapshot.ThresholdExceeded)
-        {
-            await webhookService.NotifySystemAnnouncementAsync("SystemAnnouncement", new
-            {
-                action = "storage-usage-alert",
-                bucket,
-                usedBytes = totalBytes,
-                thresholdBytes = _options.StorageUsageThresholdBytes,
-                objectCount = totalObjects,
-                at = DateTime.UtcNow
-            }, ct);
-        }
 
         return snapshot;
     }

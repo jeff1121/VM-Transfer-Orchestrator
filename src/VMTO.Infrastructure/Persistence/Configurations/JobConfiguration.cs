@@ -40,6 +40,13 @@ public sealed class JobConfiguration : IEntityTypeConfiguration<MigrationJob>
                 v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
                 v => System.Text.Json.JsonSerializer.Deserialize<MigrationOptions>(v, (System.Text.Json.JsonSerializerOptions?)null)!);
 
+        builder.Property(j => j.VmId).HasColumnName("vm_id").HasMaxLength(256);
+        builder.Property(j => j.Plan)
+            .HasColumnName("plan")
+            .HasColumnType("jsonb")
+            .HasConversion(
+                v => v == null ? null : System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                v => string.IsNullOrEmpty(v) ? null : System.Text.Json.JsonSerializer.Deserialize<VMTO.Domain.ValueObjects.MigrationPlan>(v, (System.Text.Json.JsonSerializerOptions?)null));
         builder.Property(j => j.CreatedAt).HasColumnName("created_at");
         builder.Property(j => j.UpdatedAt).HasColumnName("updated_at");
 

@@ -25,19 +25,19 @@ public sealed class LicenseConfiguration : IEntityTypeConfiguration<License>
             .HasColumnType("jsonb")
             .HasConversion(
                 v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
-                v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<string>(),
-                new ValueComparer<List<string>>(
+                v => (IReadOnlyList<string>)(System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<string>()),
+                new ValueComparer<IReadOnlyList<string>>(
                     (a, b) => a != null && b != null && a.SequenceEqual(b),
                     c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                    c => c.ToList()));
+                    c => c.ToList().AsReadOnly()));
 
         builder.Property(l => l.ActivationBindings)
             .HasColumnName("activation_bindings")
             .HasColumnType("jsonb")
             .HasConversion(
                 v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
-                v => System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new Dictionary<string, string>(),
-                new ValueComparer<Dictionary<string, string>>(
+                v => (IReadOnlyDictionary<string, string>)(System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new Dictionary<string, string>()),
+                new ValueComparer<IReadOnlyDictionary<string, string>>(
                     (a, b) => a != null && b != null && a.Count == b.Count && !a.Except(b).Any(),
                     c => c.Aggregate(0, (a, kv) => HashCode.Combine(a, kv.Key.GetHashCode(), kv.Value.GetHashCode())),
                     c => new Dictionary<string, string>(c)));

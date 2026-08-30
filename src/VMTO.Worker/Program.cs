@@ -22,11 +22,14 @@ builder.Services.AddMassTransit(x =>
 {
     var retryOptions = builder.Configuration.GetSection("Resilience:Retry").Get<RetryPolicyOptions>() ?? new RetryPolicyOptions();
 
-    x.AddConsumer<ExportVmdkConsumer>();
-    x.AddConsumer<ExportVhdxConsumer>();
+    x.AddConsumer<ExportDiskConsumer>();
     x.AddConsumer<ConvertDiskConsumer>();
     x.AddConsumer<UploadArtifactConsumer>();
-    x.AddConsumer<ImportToPveConsumer>();
+    x.AddConsumer<ProvisionTargetVmConsumer>();
+    x.AddConsumer<AttachDiskConsumer>();
+    x.AddConsumer<ConfigureTargetVmConsumer>();
+    x.AddConsumer<CleanupExportConsumer>();
+    x.AddConsumer<TargetRollbackConsumer>();
     x.AddConsumer<VerifyConsumer>();
     x.AddConsumer<EnableCbtConsumer>();
     x.AddConsumer<IncrementalPullConsumer>();

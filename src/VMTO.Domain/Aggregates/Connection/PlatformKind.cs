@@ -1,8 +1,8 @@
 namespace VMTO.Domain.Aggregates.Connection;
 
-public enum ConnectionType
+public enum PlatformKind
 {
     VSphere,
-    ProxmoxVE,
-    HyperV
+    HyperV,
+    ProxmoxVE
 }

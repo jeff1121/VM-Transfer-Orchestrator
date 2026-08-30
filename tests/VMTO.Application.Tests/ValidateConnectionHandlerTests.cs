@@ -43,9 +43,9 @@ public sealed class ValidateConnectionHandlerTests
     [Fact]
     public async Task HandleAsync_驗證成功時標記已驗證()
     {
-        var connection = new Connection("vcenter-prod", ConnectionType.VSphere, "https://vcenter.local", new EncryptedSecret("cipher", "key-1"));
+        var connection = new Connection("vcenter-prod", PlatformKind.VSphere, "https://vcenter.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
-        _sourceFactory.GetProvider(ConnectionType.VSphere).Returns(_sourcePort);
+        _sourceFactory.GetProvider(PlatformKind.VSphere).Returns(_sourcePort);
         _sourcePort.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
             .Returns(Result<IReadOnlyList<DTOs.VmInfoDto>>.Success(Array.Empty<DTOs.VmInfoDto>()));
 
@@ -59,9 +59,9 @@ public sealed class ValidateConnectionHandlerTests
     [Fact]
     public async Task HandleAsync_驗證失敗時回傳錯誤()
     {
-        var connection = new Connection("vcenter-prod", ConnectionType.VSphere, "https://vcenter.local", new EncryptedSecret("cipher", "key-1"));
+        var connection = new Connection("vcenter-prod", PlatformKind.VSphere, "https://vcenter.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
-        _sourceFactory.GetProvider(ConnectionType.VSphere).Returns(_sourcePort);
+        _sourceFactory.GetProvider(PlatformKind.VSphere).Returns(_sourcePort);
         _sourcePort.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
             .Returns(Result<IReadOnlyList<DTOs.VmInfoDto>>.Failure(ErrorCodes.General.InternalError, "連線失敗"));
 
@@ -75,9 +75,9 @@ public sealed class ValidateConnectionHandlerTests
     [Fact]
     public async Task HandleAsync_HyperV驗證成功時標記已驗證()
     {
-        var connection = new Connection("hyperv-prod", ConnectionType.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
+        var connection = new Connection("hyperv-prod", PlatformKind.HyperV, "https://hyperv.local", new EncryptedSecret("cipher", "key-1"));
         _connectionRepository.GetByIdAsync(connection.Id, Arg.Any<CancellationToken>()).Returns(connection);
-        _sourceFactory.GetProvider(ConnectionType.HyperV).Returns(_sourcePort);
+        _sourceFactory.GetProvider(PlatformKind.HyperV).Returns(_sourcePort);
         _sourcePort.ListVmsAsync(connection.Id, Arg.Any<CancellationToken>())
             .Returns(Result<IReadOnlyList<DTOs.VmInfoDto>>.Success(Array.Empty<DTOs.VmInfoDto>()));
 

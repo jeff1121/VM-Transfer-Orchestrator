@@ -31,13 +31,13 @@ test.describe('Dashboard', () => {
   test('應顯示 Dashboard 標題', async ({ page }) => {
     await page.goto('/')
     // 檢查頁面標題或主要元素
-    await expect(page.locator('h1, h2, .dashboard-title')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('h1, .hero-title').first()).toBeVisible({ timeout: 5000 })
   })
 
   test('應包含導航選項', async ({ page }) => {
     await page.goto('/')
     // 應有連結到主要功能頁面
-    const nav = page.locator('nav, .sidebar, .nav')
+    const nav = page.locator('.sidebar-nav')
     await expect(nav).toBeVisible({ timeout: 5000 })
   })
 })

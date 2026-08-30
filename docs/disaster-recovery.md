@@ -5,7 +5,7 @@
 本文件說明 VMTO 在資料毀損、節點故障或配置遺失時的復原流程，目標為：
 
 - 快速恢復 API/Worker 服務
-- 還原系統設定（連線、Webhook、Chaos 設定）
+- 還原系統設定（連線、Chaos 設定）
 - 還原 PostgreSQL 資料並重新啟動任務編排
 
 ## 2. 備份項目
@@ -13,7 +13,7 @@
 ### 2.1 系統設定備份（JSON）
 
 - 端點：`POST /api/ops/backup/config`
-- 內容：Connections、WebhookSubscriptions、Chaos 設定快照
+- 內容：Connections、Chaos 設定快照
 - 還原：`POST /api/ops/restore/config`
 
 ### 2.2 資料庫備份（pg_dump）
@@ -38,7 +38,7 @@
 psql "host=<host> port=<port> dbname=<db> user=<user>" < vmto-backup.sql
 ```
 
-3. 驗證主要資料表（jobs、job_steps、connections、webhook_subscriptions）資料完整。
+3. 驗證主要資料表（jobs、job_steps、connections）資料完整。
 
 ### 步驟 C：還原系統設定
 
@@ -48,7 +48,7 @@ psql "host=<host> port=<port> dbname=<db> user=<user>" < vmto-backup.sql
 POST /api/ops/restore/config
 ```
 
-2. `replaceExisting=true` 時會先清空現有 Connections 與 Webhooks 再匯入。
+2. `replaceExisting=true` 時會先清空現有 Connections 再匯入。
 
 ### 步驟 D：恢復任務處理
 

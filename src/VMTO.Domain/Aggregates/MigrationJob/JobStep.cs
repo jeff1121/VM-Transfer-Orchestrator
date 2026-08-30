@@ -10,7 +10,7 @@ public sealed class JobStep
 
     public Guid Id { get; private set; }
     public Guid JobId { get; private set; }
-    public MigrationStepType StepType { get; private set; }
+    public MigrationStepKind StepType { get; private set; }
     public string Name => StepType.ToString();
     public int Order { get; private set; }
     public StepStatus Status { get; private set; }
@@ -24,7 +24,7 @@ public sealed class JobStep
 
     public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
-    public JobStep(Guid jobId, MigrationStepType stepType, int order, int maxRetries)
+    public JobStep(Guid jobId, MigrationStepKind stepType, int order, int maxRetries)
     {
         Id = Guid.NewGuid();
         JobId = jobId;
@@ -35,11 +35,10 @@ public sealed class JobStep
     }
 
     public JobStep(Guid jobId, string name, int order, int maxRetries)
-        : this(jobId, Enum.TryParse<MigrationStepType>(name, true, out var parsed) ? parsed : MigrationStepType.ExportVmdk, order, maxRetries)
+        : this(jobId, ParseStepKind(name), order, maxRetries)
     {
     }
 
-    // EF Core / serialization
     private JobStep() { }
 
     public void ClearDomainEvents() => _domainEvents.Clear();
@@ -128,5 +127,20 @@ public sealed class JobStep
 
         LogsUri = uri;
         return Result.Success();
+    }
+
+    internal static MigrationStepKind ParseStepKind(string name)
+    {
+        if (Enum.TryParse<MigrationStepKind>(name, true, out var parsed))
+            return parsed;
+
+        return name.ToLowerInvariant() switch
+        {
+            "exportvmdk" or "exportvhdx" => MigrationStepKind.ExportDisk,
+            "uploadartifact" => MigrationStepKind.StageArtifact,
+            "importtopve" => MigrationStepKind.AttachDisk,
+            "verify" => MigrationStepKind.VerifyTargetVm,
+            _ => MigrationStepKind.ExportDisk
+        };
     }
 }

@@ -16,7 +16,7 @@ public sealed class JobStepTests
     private static readonly Guid JobId = Guid.NewGuid();
 
     // 建立預設的 JobStep 實例
-    private static JobStep CreateStep(int maxRetries = 3) => new(JobId, "ExportVmdk", 1, maxRetries);
+    private static JobStep CreateStep(int maxRetries = 3) => new(JobId, "ExportDisk", 1, maxRetries);
 
     // 將步驟推進到指定狀態
     private static JobStep CreateStepInStatus(StepStatus target, int maxRetries = 3)
@@ -44,7 +44,7 @@ public sealed class JobStepTests
 
         step.Id.Should().NotBeEmpty();
         step.JobId.Should().Be(JobId);
-        step.Name.Should().Be("ExportVmdk");
+        step.Name.Should().Be("ExportDisk");
         step.Order.Should().Be(1);
         step.Status.Should().Be(StepStatus.Pending);
         step.Progress.Should().Be(0);

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using MassTransit;
 using Microsoft.Extensions.Logging;
-using VMTO.Application.Ports.Services;
 using VMTO.Infrastructure.Persistence;
 using VMTO.Infrastructure.Persistence.Entities;
 using VMTO.Worker.Messages;
@@ -10,7 +9,6 @@ namespace VMTO.Worker.Consumers;
 
 public sealed partial class DlqConsumer(
     AppDbContext db,
-    IWebhookService webhookService,
     ILogger<DlqConsumer> logger) : IConsumer<StepFailedMessage>
 {
     public async Task Consume(ConsumeContext<StepFailedMessage> context)
@@ -33,13 +31,6 @@ public sealed partial class DlqConsumer(
         await db.SaveChangesAsync(context.CancellationToken);
 
         LogCaptured(logger, entry.Id, message.JobId, message.StepId, queueName);
-
-        await webhookService.NotifyStepFailedAsync(
-            message.JobId,
-            message.StepId,
-            $"DLQ:{message.StepName}",
-            message.Error,
-            context.CancellationToken);
     }
 
     [LoggerMessage(

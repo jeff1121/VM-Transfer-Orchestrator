@@ -1,20 +1,17 @@
 using Microsoft.EntityFrameworkCore;
-using VMTO.Application.Ports.Services;
 using VMTO.Domain.Enums;
 using VMTO.Infrastructure.Persistence;
 
 namespace VMTO.Infrastructure.Jobs;
 
-public sealed class DailyReportJob(
-    AppDbContext db,
-    IWebhookService webhookService)
+public sealed class DailyReportJob(AppDbContext db)
 {
     public async Task RunAsync(CancellationToken ct = default)
     {
         var since = DateTime.UtcNow.AddDays(-1);
         var baseQuery = db.Jobs.Where(j => j.CreatedAt >= since);
 
-        var payload = new
+        _ = new
         {
             action = "daily-report",
             generatedAt = DateTime.UtcNow,
@@ -25,7 +22,5 @@ public sealed class DailyReportJob(
             runningJobs = await baseQuery.CountAsync(j => j.Status == JobStatus.Running, ct),
             queuedJobs = await baseQuery.CountAsync(j => j.Status == JobStatus.Queued, ct)
         };
-
-        await webhookService.NotifySystemAnnouncementAsync("SystemAnnouncement", payload, ct);
     }
 }

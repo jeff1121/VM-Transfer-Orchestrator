@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: 'html',
   use: {
     // 前端開發伺服器 URL
-    baseURL: 'http://localhost:5173',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

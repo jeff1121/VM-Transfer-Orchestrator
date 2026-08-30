@@ -17,7 +17,7 @@ namespace VMTO.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -78,6 +78,13 @@ namespace VMTO.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("endpoint");
+
+                    b.Property<string>("MetadataJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValue("{}")
+                        .HasColumnName("metadata_json");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -177,11 +184,6 @@ namespace VMTO.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("max_retries");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("name");
-
                     b.Property<int>("Order")
                         .HasColumnType("integer")
                         .HasColumnName("order");
@@ -202,6 +204,11 @@ namespace VMTO.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("status");
+
+                    b.Property<string>("StepType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("step_type");
 
                     b.HasKey("Id");
 
@@ -230,6 +237,10 @@ namespace VMTO.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("options");
+
+                    b.Property<string>("Plan")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("plan");
 
                     b.Property<int>("Progress")
                         .HasColumnType("integer")
@@ -260,6 +271,12 @@ namespace VMTO.Infrastructure.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
+
+                    b.Property<string>("VmId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("vm_id");
 
                     b.HasKey("Id");
 
@@ -302,6 +319,56 @@ namespace VMTO.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("audit_logs", (string)null);
+                });
+
+            modelBuilder.Entity("VMTO.Infrastructure.Persistence.Entities.DeadLetterLogEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text")
+                        .HasColumnName("error");
+
+                    b.Property<string>("MessageType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("message_type");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payload");
+
+                    b.Property<string>("QueueName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("queue_name");
+
+                    b.Property<DateTime?>("ReplayedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("replayed_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_dead_letter_logs_created_at");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_dead_letter_logs_status");
+
+                    b.ToTable("dead_letter_logs", (string)null);
                 });
 
             modelBuilder.Entity("VMTO.Domain.Aggregates.Artifact.Artifact", b =>

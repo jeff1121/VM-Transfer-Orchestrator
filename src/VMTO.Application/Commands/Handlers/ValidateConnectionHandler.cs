@@ -35,7 +35,7 @@ public sealed class ValidateConnectionHandler : ICommandHandler<ValidateConnecti
         Result validationResult;
         try
         {
-            if (connection.Type == ConnectionType.ProxmoxVE)
+            if (connection.Type == PlatformKind.ProxmoxVE)
             {
                 var targetProvider = _targetFactory.GetProvider(connection.Type);
                 var createResult = await targetProvider.CreateVmAsync(connection.Id, "__vmto_conn_test", 1, 512, ct);

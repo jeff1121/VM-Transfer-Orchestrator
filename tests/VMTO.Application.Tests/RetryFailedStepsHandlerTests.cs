@@ -21,7 +21,7 @@ public sealed class RetryFailedStepsHandlerTests
     private readonly RetryFailedStepsHandler _handler;
 
     private static readonly StorageTarget DefaultStorage = new(StorageType.S3, "http://localhost:9000", "bucket", "us-east-1");
-    private static readonly MigrationOptions DefaultOptions = new(ArtifactFormat.Qcow2, false, true, 3);
+    private static readonly MigrationOptions DefaultOptions = new(ArtifactFormat.Qcow2, true, 3);
 
     public RetryFailedStepsHandlerTests()
     {
@@ -44,7 +44,7 @@ public sealed class RetryFailedStepsHandlerTests
     public async Task HandleAsync_成功重試失敗的步驟()
     {
         var job = new MigrationJob(Guid.NewGuid(), Guid.NewGuid(), DefaultStorage, MigrationStrategy.FullCopy, DefaultOptions);
-        job.AddStep("ExportVmdk", 1);
+        job.AddStep("ExportDisk", 1);
         job.AddStep("ConvertDisk", 2);
 
         // 將第一個步驟推進到 Failed 狀態
@@ -66,7 +66,7 @@ public sealed class RetryFailedStepsHandlerTests
     public async Task HandleAsync_沒有失敗步驟時直接成功()
     {
         var job = new MigrationJob(Guid.NewGuid(), Guid.NewGuid(), DefaultStorage, MigrationStrategy.FullCopy, DefaultOptions);
-        job.AddStep("ExportVmdk", 1);
+        job.AddStep("ExportDisk", 1);
 
         _jobRepository.GetByIdAsync(job.Id, Arg.Any<CancellationToken>()).Returns(job);
 

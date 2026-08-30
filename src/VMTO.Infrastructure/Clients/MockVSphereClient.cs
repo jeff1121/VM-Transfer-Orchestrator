@@ -19,30 +19,25 @@ public sealed class MockVSphereClient : IVSphereClient
 
     public Task<Result<Stream>> ExportVmdkAsync(Guid connectionId, string vmId, string diskKey, IProgress<int>? progress = null, CancellationToken ct = default)
     {
-        var stream = new MemoryStream(new byte[1024]);
         progress?.Report(100);
-        return Task.FromResult(Result<Stream>.Success((Stream)stream));
+        return Task.FromResult(Result<Stream>.Success((Stream)new MemoryStream(new byte[1024])));
     }
 
     public Task<Result<bool>> IsCbtEnabledAsync(Guid connectionId, string vmId, CancellationToken ct = default)
-    {
-        return Task.FromResult(Result<bool>.Success(true));
-    }
+        => Task.FromResult(Result<bool>.Success(true));
 
     public Task<Result> EnableCbtAsync(Guid connectionId, string vmId, CancellationToken ct = default)
-    {
-        return Task.FromResult(Result.Success());
-    }
+        => Task.FromResult(Result.Success());
 
     public Task<Result<string>> GetVmStateAsync(Guid connectionId, string vmId, CancellationToken ct = default)
-    {
-        return Task.FromResult(Result<string>.Success("poweredOff"));
-    }
+        => Task.FromResult(Result<string>.Success("poweredOff"));
 
-    public Task<Result<HyperVVmDetailsDto>> GetVmDetailsAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+    public Task<Result<VmInspectionDto>> InspectAsync(Guid connectionId, string vmId, CancellationToken ct = default)
     {
-        var details = new HyperVVmDetailsDto(vmId, "web-server-01", "poweredOff", 4, 8192, "VMware ESXi Guest", 0, []);
-        return Task.FromResult(Result<HyperVVmDetailsDto>.Success(details));
+        var inspection = new VmInspectionDto(
+            vmId, "web-server-01", "poweredOff", 4, 8192, "VMware ESXi Guest", 0, false,
+            [new DiskDescriptorDto("disk-0", "[datastore] vm/disk-0.vmdk", 20L * 1024 * 1024 * 1024, "VMDK")]);
+        return Task.FromResult(Result<VmInspectionDto>.Success(inspection));
     }
 
     public Task<Result<PreFlightCheckResultDto>> RunPreFlightCheckAsync(Guid connectionId, string vmId, CancellationToken ct = default)
@@ -55,7 +50,8 @@ public sealed class MockVSphereClient : IVSphereClient
     }
 
     public Task<Result<Stream>> ExportDiskAsync(Guid connectionId, string vmId, string diskKey, IProgress<int>? progress = null, CancellationToken ct = default)
-    {
-        return ExportVmdkAsync(connectionId, vmId, diskKey, progress, ct);
-    }
+        => ExportVmdkAsync(connectionId, vmId, diskKey, progress, ct);
+
+    public Task<Result> CleanupExportAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+        => Task.FromResult(Result.Success());
 }

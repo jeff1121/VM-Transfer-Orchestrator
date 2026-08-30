@@ -11,9 +11,9 @@ public static class LicenseEndpoints
         var group = app.MapGroup("/api/license").WithTags("License").RequireAuthorization();
 
         group.MapGet("/", GetLicense);
-        // 啟用授權 — 僅限 Admin，套用寫入速率限制
+        // 啟用授權 — 允許 Admin 或 Operator
         group.MapPost("/activate", ActivateLicense).RequireAuthorization(policy =>
-            policy.RequireRole(Roles.Admin)).RequireRateLimiting("write");
+            policy.RequireRole(Roles.Admin, Roles.Operator)).RequireRateLimiting("write");
     }
 
     private static async Task<IResult> GetLicense(ILicenseRepository repo, CancellationToken ct)
@@ -23,7 +23,7 @@ public static class LicenseEndpoints
         return Results.Ok(new
         {
             license.Id,
-            license.Plan,
+            Plan = license.Plan.ToString(),
             license.Features,
             license.MaxConcurrentJobs,
             license.ExpiresAt,

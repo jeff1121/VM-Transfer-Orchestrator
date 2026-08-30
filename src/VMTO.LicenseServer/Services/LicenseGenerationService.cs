@@ -1,8 +1,6 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using VMTO.Application.Ports.Repositories;
 using VMTO.Domain.Aggregates.License;
+using VMTO.Domain.Licensing;
 
 namespace VMTO.LicenseServer.Services;
 
@@ -24,37 +22,24 @@ public sealed class LicenseGenerationService
         ILicenseRepository repository,
         CancellationToken ct = default)
     {
-        var key = GenerateKey();
-        var signature = Sign(key, plan, features, maxConcurrentJobs, expiresAt);
+        var key = LicenseKeyCodec.Generate(plan, maxConcurrentJobs, expiresAt, features.ToList(), GetMasterKey());
+        var signature = "HMAC-SHA256-48";
 
         var license = new License(key, plan, features, maxConcurrentJobs, expiresAt, activationBindings, signature);
         await repository.AddAsync(license, ct);
         return license;
     }
 
-    internal static string GenerateKey()
+    public string GenerateKeyOnly(LicensePlan plan, IEnumerable<string> features, int maxConcurrentJobs, DateTime expiresAt)
     {
-        Span<byte> buffer = stackalloc byte[16];
-        RandomNumberGenerator.Fill(buffer);
-        var hex = Convert.ToHexString(buffer);
-        return $"VMTO-{hex[..4]}-{hex[4..8]}-{hex[8..12]}-{hex[12..16]}";
+        return LicenseKeyCodec.Generate(plan, maxConcurrentJobs, expiresAt, features.ToList(), GetMasterKey());
     }
 
-    internal string Sign(string key, LicensePlan plan, IEnumerable<string> features, int maxConcurrentJobs, DateTime expiresAt)
+    private byte[]? GetMasterKey()
     {
-        var signingKey = GetSigningKey();
-        var payload = JsonSerializer.Serialize(new { key, plan, features, maxConcurrentJobs, expiresAt });
-        using var hmac = new HMACSHA256(signingKey);
-        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
-        return Convert.ToBase64String(hash);
-    }
-
-    private byte[] GetSigningKey()
-    {
-        var keyString = _configuration["License:SigningKey"]
-            ?? throw new InvalidOperationException(
-                "License signing key is not configured. Set 'License:SigningKey' in configuration or the LICENSE__SIGNINGKEY environment variable.");
-
-        return Convert.FromBase64String(keyString);
+        var keyString = _configuration["License:SigningKey"];
+        if (string.IsNullOrWhiteSpace(keyString)) return null;
+        try { return Convert.FromBase64String(keyString); }
+        catch { return null; }
     }
 }

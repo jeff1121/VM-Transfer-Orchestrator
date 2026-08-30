@@ -157,7 +157,35 @@ public sealed class PveClient : IPveClient
     }
 
     public Task<Result<string>> GetVmStatusAsync(Guid connectionId, string vmId, CancellationToken ct = default)
+        => Task.FromResult(Result<string>.Success("running"));
+
+    public async Task<Result> RollbackAsync(Guid connectionId, string? targetVmId, string idempotencyKey, CancellationToken ct = default)
     {
-        return Task.FromResult(Result<string>.Success("running"));
+        if (string.IsNullOrWhiteSpace(targetVmId))
+            return Result.Success();
+
+        using var activity = ActivitySources.Default.StartActivity("pve.rollback_vm", ActivityKind.Client);
+        activity?.SetTag("vmto.connection.id", connectionId.ToString());
+        activity?.SetTag("vmto.vm.id", targetVmId);
+        activity?.SetTag("vmto.idempotency_key", idempotencyKey);
+
+        try
+        {
+            await _chaosPolicy.ApplyAsync("pve.rollback_vm", ct);
+            return await _pipeline.ExecuteAsync(async token =>
+            {
+                var response = await _http.DeleteAsync($"/api2/json/nodes/pve/qemu/{targetVmId}", token);
+                activity?.SetTag("http.status_code", (int)response.StatusCode);
+                if ((int)response.StatusCode is 404)
+                    return Result.Success();
+                response.EnsureSuccessStatusCode();
+                return Result.Success();
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            return Result.Failure(ErrorCodes.General.InternalError, $"Failed to rollback VM: {ex.Message}");
+        }
     }
 }

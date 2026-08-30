@@ -17,6 +17,7 @@ public sealed class ConnectionConfiguration : IEntityTypeConfiguration<Connectio
         builder.Property(c => c.Endpoint).HasColumnName("endpoint");
         builder.Property(c => c.ValidatedAt).HasColumnName("validated_at");
         builder.Property(c => c.CreatedAt).HasColumnName("created_at");
+        builder.Property(c => c.MetadataJson).HasColumnName("metadata_json").HasColumnType("jsonb").HasDefaultValue("{}");
 
         builder.OwnsOne(c => c.EncryptedSecret, es =>
         {

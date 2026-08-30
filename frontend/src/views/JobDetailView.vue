@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { jobsApi } from '@/api/jobs'
 import { useSignalR } from '@/composables/useSignalR'
 import type { Job, JobStatus, StepStatus } from '@/types'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const jobId = route.params.id as string
 
@@ -15,7 +16,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const actionLoading = ref(false)
 
-const { connect, connected, onJobProgress, onStepProgress } = useSignalR()
+const { connect, onJobProgress, onStepProgress } = useSignalR()
 
 const canCancel = computed(() => {
   const s = job.value?.status
@@ -25,16 +26,22 @@ const canPause = computed(() => job.value?.status === 'Running')
 const canResume = computed(() => job.value?.status === 'Paused')
 const canRetry = computed(() => job.value?.status === 'Failed')
 
-const statusClass = (status: JobStatus | StepStatus) => {
-  const map: Record<string, string> = {
-    Running: 'badge-running', Queued: 'badge-queued', Pending: 'badge-queued',
-    Failed: 'badge-failed', Succeeded: 'badge-succeeded', Retrying: 'badge-running',
-    Paused: 'badge-paused', Cancelled: 'badge-cancelled', Skipped: 'badge-cancelled',
+const statusBadge = (status: JobStatus | StepStatus) => {
+  const map: Record<string, { class: string; icon: string }> = {
+    Running: { class: 'status-running', icon: '⚡' },
+    Queued: { class: 'status-queued', icon: '⏳' },
+    Pending: { class: 'status-pending', icon: '⏳' },
+    Failed: { class: 'status-failed', icon: '❌' },
+    Succeeded: { class: 'status-succeeded', icon: '✅' },
+    Retrying: { class: 'status-running', icon: '🔄' },
+    Paused: { class: 'status-paused', icon: '⏸️' },
+    Cancelled: { class: 'status-cancelled', icon: '🚫' },
+    Skipped: { class: 'status-cancelled', icon: '⏭️' },
   }
-  return map[status] ?? 'badge-default'
+  return map[status] ?? { class: 'status-default', icon: '•' }
 }
 
-const formatDate = (iso: string) => new Date(iso).toLocaleString('zh-TW')
+const formatDate = (iso: string) => new Date(iso).toLocaleString('zh-TW', { hour12: false })
 
 const fetchJob = async () => {
   loading.value = true
@@ -74,7 +81,7 @@ onMounted(async () => {
     })
     onStepProgress((jId, stepId, progress, status) => {
       if (jId === jobId && job.value) {
-        const step = job.value.steps.find(s => s.id === stepId)
+        const step = job.value.steps.find((s) => s.id === stepId)
         if (step) {
           step.progress = progress
           step.status = status as StepStatus
@@ -88,101 +95,433 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="job-detail">
-    <div v-if="loading" class="loading">{{ t('common.loading') }}</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
+  <div class="job-detail-container">
+    <!-- Top Nav Back -->
+    <div class="nav-back">
+      <button class="neu-back-btn" @click="router.push('/')">
+        <span>← {{ t('nav.dashboard') }}</span>
+      </button>
+    </div>
+
+    <div v-if="loading" class="glass-card loading-state">
+      <span class="spinner">🌀</span>
+      <p>{{ t('common.loading') }}</p>
+    </div>
+
+    <div v-else-if="error" class="neu-banner banner-error">{{ error }}</div>
+
     <template v-else-if="job">
-      <div class="header">
-        <h1>{{ t('jobs.detail') }}</h1>
-        <div class="signal-status">
-          <span :class="connected ? 'dot-green' : 'dot-red'"></span>
-          {{ connected ? t('jobs.online') : t('common.offline') }}
-        </div>
-      </div>
-
-      <div class="info-panel">
-        <div class="info-row"><span class="label">ID</span><span class="value mono">{{ job.id }}</span></div>
-        <div class="info-row"><span class="label">{{ t('jobs.strategy') }}</span><span class="value">{{ job.strategy }}</span></div>
-        <div class="info-row">
-          <span class="label">{{ t('jobs.status') }}</span>
-          <span :class="['badge', statusClass(job.status)]">{{ job.status }}</span>
-        </div>
-        <div class="info-row">
-          <span class="label">{{ t('jobs.totalProgress') }}</span>
-          <div class="progress-bar"><div class="progress-fill" :style="{ width: job.progress + '%' }"></div></div>
-          <span class="progress-text">{{ job.progress }}%</span>
-        </div>
-        <div class="info-row"><span class="label">{{ t('dashboard.table.createdAt') }}</span><span class="value">{{ formatDate(job.createdAt) }}</span></div>
-        <div class="info-row"><span class="label">{{ t('jobs.updatedAt') }}</span><span class="value">{{ formatDate(job.updatedAt) }}</span></div>
-      </div>
-
-      <div class="actions">
-        <button v-if="canPause" class="btn btn-secondary" :disabled="actionLoading" @click="doAction('pause')">{{ t('jobs.pause') }}</button>
-        <button v-if="canResume" class="btn btn-primary" :disabled="actionLoading" @click="doAction('resume')">{{ t('jobs.resume') }}</button>
-        <button v-if="canRetry" class="btn btn-primary" :disabled="actionLoading" @click="doAction('retry')">{{ t('jobs.retryShort') }}</button>
-        <button v-if="canCancel" class="btn btn-danger" :disabled="actionLoading" @click="doAction('cancel')">{{ t('jobs.cancelShort') }}</button>
-      </div>
-
-      <h2>{{ t('jobs.steps') }}</h2>
-      <div class="steps">
-        <div v-for="step in job.steps" :key="step.id" class="step-card">
-          <div class="step-header">
-            <span class="step-order">#{{ step.order }}</span>
-            <span class="step-name">{{ step.name }}</span>
-            <span :class="['badge', statusClass(step.status)]">{{ step.status }}</span>
+      <!-- Main Overview Hero Card -->
+      <section class="glass-card hero-card">
+        <div class="hero-top">
+          <div class="hero-id-badge">
+            <span class="badge-icon">📦</span>
+            <div class="id-info">
+              <span class="id-label">MIGRATION JOB</span>
+              <span class="id-val">{{ job.id }}</span>
+            </div>
           </div>
-          <div class="step-progress">
-            <div class="progress-bar"><div class="progress-fill" :style="{ width: step.progress + '%' }"></div></div>
-            <span class="progress-text">{{ step.progress }}%</span>
+
+          <div class="hero-status">
+            <span :class="['status-pill', statusBadge(job.status).class]">
+              <span class="pill-icon">{{ statusBadge(job.status).icon }}</span>
+              <span class="pill-text">{{ job.status }}</span>
+            </span>
           </div>
-          <div v-if="step.retryCount > 0" class="step-retry">{{ t('jobs.retryCount') }}: {{ step.retryCount }}</div>
-          <div v-if="step.errorMessage" class="step-error">{{ step.errorMessage }}</div>
         </div>
-        <div v-if="job.steps.length === 0" class="empty">{{ t('jobs.noSteps') }}</div>
-      </div>
+
+        <!-- Overall Progress Display -->
+        <div class="hero-progress-section">
+          <div class="progress-info">
+            <span class="progress-label">{{ t('jobs.totalProgress') }}</span>
+            <span class="progress-percent">{{ job.progress }}%</span>
+          </div>
+          <div class="glass-progress-track large">
+            <div class="glass-progress-bar" :style="{ width: job.progress + '%' }"></div>
+          </div>
+        </div>
+
+        <!-- Specs Grid -->
+        <div class="specs-grid">
+          <div class="spec-card">
+            <span class="spec-label">{{ t('jobs.strategy') }}</span>
+            <span class="spec-val">{{ job.strategy }}</span>
+          </div>
+          <div class="spec-card">
+            <span class="spec-label">{{ t('dashboard.table.createdAt') }}</span>
+            <span class="spec-val">{{ formatDate(job.createdAt) }}</span>
+          </div>
+          <div class="spec-card">
+            <span class="spec-label">{{ t('jobs.updatedAt') }}</span>
+            <span class="spec-val">{{ formatDate(job.updatedAt) }}</span>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="hero-actions">
+          <button v-if="canPause" class="neu-action-btn pause-btn" :disabled="actionLoading" @click="doAction('pause')">
+            <span>⏸️ {{ t('jobs.pause') }}</span>
+          </button>
+          <button v-if="canResume" class="neu-action-btn resume-btn" :disabled="actionLoading" @click="doAction('resume')">
+            <span>▶️ {{ t('jobs.resume') }}</span>
+          </button>
+          <button v-if="canRetry" class="neu-action-btn retry-btn" :disabled="actionLoading" @click="doAction('retry')">
+            <span>🔄 {{ t('jobs.retryShort') }}</span>
+          </button>
+          <button v-if="canCancel" class="neu-action-btn cancel-btn" :disabled="actionLoading" @click="doAction('cancel')">
+            <span>🚫 {{ t('jobs.cancelShort') }}</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Step Pipeline Timeline Section -->
+      <section class="steps-section">
+        <div class="section-title">
+          <span>⚡</span>
+          <h2>{{ t('jobs.steps') }} ({{ job.steps.length }})</h2>
+        </div>
+
+        <div class="steps-grid">
+          <div
+            v-for="step in job.steps"
+            :key="step.id"
+            :class="['glass-card', 'step-item-card', { active: step.status === 'Running' }]"
+          >
+            <div class="step-card-header">
+              <div class="step-title-box">
+                <span class="step-num">#{{ step.order }}</span>
+                <span class="step-name">{{ step.name }}</span>
+              </div>
+              <span :class="['status-pill-sm', statusBadge(step.status).class]">
+                {{ step.status }}
+              </span>
+            </div>
+
+            <div class="step-progress-row">
+              <div class="glass-progress-track">
+                <div class="glass-progress-bar" :style="{ width: step.progress + '%' }"></div>
+              </div>
+              <span class="step-pct">{{ step.progress }}%</span>
+            </div>
+
+            <div v-if="step.retryCount > 0" class="step-retry-text">
+              ⚠️ {{ t('jobs.retryCount') }}: {{ step.retryCount }}
+            </div>
+            <div v-if="step.errorMessage" class="step-error-banner">
+              {{ step.errorMessage }}
+            </div>
+          </div>
+        </div>
+      </section>
     </template>
   </div>
 </template>
 
 <style scoped>
-.job-detail { max-width: 800px; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-h2 { margin: 24px 0 12px; }
-.signal-status { font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
-.dot-green, .dot-red { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.dot-green { background: #22c55e; }
-.dot-red { background: #ef4444; }
-.info-panel { background: var(--bg-elevated); border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.1); border: 1px solid var(--border-color); }
-.info-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-color); }
-.info-row:last-child { border-bottom: none; }
-.label { font-weight: 500; color: var(--text-secondary); min-width: 100px; }
-.mono { font-family: monospace; font-size: 0.85rem; }
-.actions { display: flex; gap: 8px; margin-top: 16px; }
-.btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
-.btn-primary { background: #3b82f6; color: white; }
-.btn-secondary { background: var(--border-color); color: var(--text-primary); }
-.btn-danger { background: #ef4444; color: white; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.steps { display: flex; flex-direction: column; gap: 8px; }
-.step-card { background: var(--bg-elevated); border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.1); border: 1px solid var(--border-color); }
-.step-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.step-order { font-weight: 700; color: var(--text-secondary); }
-.step-name { flex: 1; font-weight: 500; }
-.step-progress { display: flex; align-items: center; gap: 8px; }
-.progress-bar { flex: 1; height: 6px; background: var(--border-color); border-radius: 3px; }
-.progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.3s; }
-.progress-text { font-size: 0.8rem; color: var(--text-secondary); min-width: 36px; }
-.step-retry { font-size: 0.8rem; color: #f59e0b; margin-top: 4px; }
-.step-error { font-size: 0.8rem; color: #ef4444; margin-top: 4px; }
-.badge { padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 500; }
-.badge-running { background: #dbeafe; color: #1d4ed8; }
-.badge-queued { background: #fef3c7; color: #92400e; }
-.badge-failed { background: #fef2f2; color: #b91c1c; }
-.badge-succeeded { background: #dcfce7; color: #166534; }
-.badge-paused { background: #f3f4f6; color: #374151; }
-.badge-cancelled { background: #f3f4f6; color: #6b7280; }
-.badge-default { background: #f3f4f6; color: #374151; }
-.loading { color: var(--text-secondary); padding: 20px; }
-.error { background: #fef2f2; color: #b91c1c; padding: 12px; border-radius: 6px; }
-.empty { text-align: center; color: var(--text-secondary); padding: 24px; }
+.job-detail-container {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.nav-back {
+  display: flex;
+}
+
+.neu-back-btn {
+  background: var(--bg-surface);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  box-shadow: var(--neu-shadow-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.neu-back-btn:hover {
+  color: var(--text-primary);
+  transform: translateX(-4px);
+}
+
+/* Glass Card */
+.glass-card {
+  background: var(--bg-surface);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: 20px;
+  box-shadow: var(--neu-shadow);
+  padding: 32px;
+}
+
+/* Hero Card */
+.hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.hero-id-badge {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.badge-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--bg-surface-elevated);
+  box-shadow: var(--neu-inset);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+.id-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.id-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--primary);
+  letter-spacing: 0.5px;
+}
+
+.id-val {
+  font-family: monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Progress Section */
+.hero-progress-section {
+  background: var(--bg-surface-elevated);
+  border: var(--glass-border-subtle);
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: var(--neu-inset);
+  margin-bottom: 24px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.progress-label {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.progress-percent {
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: var(--primary);
+}
+
+.glass-progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  overflow: hidden;
+  box-shadow: var(--neu-inset);
+}
+
+.glass-progress-track.large {
+  height: 12px;
+}
+
+.glass-progress-bar {
+  height: 100%;
+  background: var(--primary-gradient);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+/* Specs Grid */
+.specs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.spec-card {
+  background: var(--bg-surface-elevated);
+  border: var(--glass-border-subtle);
+  border-radius: 14px;
+  padding: 14px 18px;
+  box-shadow: var(--neu-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spec-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+.spec-val { font-size: 0.95rem; font-weight: 700; }
+
+/* Hero Actions */
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.neu-action-btn {
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--neu-shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.pause-btn, .resume-btn { background: var(--primary-gradient); color: white; }
+.retry-btn { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning); }
+.cancel-btn { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
+
+.neu-action-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--neu-shadow-hover);
+}
+
+/* Steps Pipeline */
+.steps-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title h2 {
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.step-item-card {
+  padding: 20px 24px;
+  border-radius: 16px;
+  transition: all 0.25s ease;
+}
+
+.step-item-card.active {
+  border-left: 6px solid var(--primary);
+  background: var(--bg-surface-elevated);
+}
+
+.step-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.step-title-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.step-num {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  background: var(--bg-surface-elevated);
+  padding: 2px 8px;
+  border-radius: 6px;
+  box-shadow: var(--neu-inset);
+}
+
+.step-name {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.step-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.step-pct {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 36px;
+}
+
+.step-retry-text {
+  font-size: 0.8rem;
+  color: var(--warning);
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.step-error-banner {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+/* Status Badges */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.status-pill-sm {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.status-running { background: var(--primary-glow); color: var(--primary); }
+.status-queued, .status-pending { background: var(--warning-bg); color: var(--warning); }
+.status-succeeded { background: var(--success-bg); color: var(--success); }
+.status-failed { background: var(--danger-bg); color: var(--danger); }
+.status-paused, .status-cancelled { background: rgba(148, 163, 184, 0.15); color: #64748b; }
+
+@media (max-width: 768px) {
+  .specs-grid { grid-template-columns: 1fr; }
+  .hero-top { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .hero-actions { justify-content: stretch; flex-direction: column; }
+}
 </style>
