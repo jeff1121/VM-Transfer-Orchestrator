@@ -2,9 +2,16 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuditStore } from '@/stores/audit'
+import NeuSelect, { type SelectOption } from '@/components/common/NeuSelect.vue'
 
 const { t } = useI18n()
 const store = useAuditStore()
+
+const pageSizeOptions: SelectOption[] = [
+  { value: 10, label: '10 / Page' },
+  { value: 20, label: '20 / Page' },
+  { value: 50, label: '50 / Page' },
+]
 
 const filters = reactive({
   action: '',
@@ -75,8 +82,8 @@ const goToPage = (p: number) => {
   loadData()
 }
 
-const changePageSize = (e: Event) => {
-  pageSize.value = Number((e.target as HTMLSelectElement).value)
+const changePageSize = (val: string | number) => {
+  pageSize.value = Number(val)
   page.value = 1
   loadData()
 }
@@ -214,11 +221,11 @@ onMounted(() => {
             {{ p }}
           </button>
           <button class="neu-page-btn" :disabled="page >= totalPages" @click="goToPage(page + 1)">{{ t('common.next') }}</button>
-          <select class="neu-select" :value="pageSize" @change="changePageSize">
-            <option :value="10">10 / Page</option>
-            <option :value="20">20 / Page</option>
-            <option :value="50">50 / Page</option>
-          </select>
+          <NeuSelect
+            :model-value="pageSize"
+            :options="pageSizeOptions"
+            @change="changePageSize"
+          />
         </div>
       </div>
     </div>

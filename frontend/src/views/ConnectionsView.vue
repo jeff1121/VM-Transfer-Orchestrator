@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useConnectionsStore } from '@/stores/connections'
 import { connectionsApi } from '@/api/connections'
 import type { CreateConnectionRequest, PlatformKind } from '@/types'
+import NeuSelect, { type SelectOption } from '@/components/common/NeuSelect.vue'
 
 const { t } = useI18n()
 const connectionsStore = useConnectionsStore()
@@ -21,7 +22,11 @@ const newConn = ref<CreateConnectionRequest>({
   secret: '',
 })
 
-const connectionTypes: PlatformKind[] = ['VSphere', 'ProxmoxVE', 'HyperV']
+const connectionOptions = computed<SelectOption[]>(() => [
+  { value: 'VSphere', label: t('connections.types.VSphere'), icon: '🌐' },
+  { value: 'ProxmoxVE', label: t('connections.types.ProxmoxVE'), icon: '⚡' },
+  { value: 'HyperV', label: t('connections.types.HyperV'), icon: '🪟' },
+])
 const endpointHint = computed(() => t(`connections.endpointHint.${newConn.value.type}`))
 
 const resetForm = () => {
@@ -106,11 +111,11 @@ onMounted(() => connectionsStore.fetchConnections())
 
           <div class="form-group">
             <label class="form-label">{{ t('connections.type') }}</label>
-            <select v-model="newConn.type" class="neu-input">
-              <option v-for="type in connectionTypes" :key="type" :value="type">
-                {{ t(`connections.types.${type}`) }}
-              </option>
-            </select>
+            <NeuSelect
+              v-model="newConn.type"
+              :options="connectionOptions"
+              full-width
+            />
           </div>
 
           <div class="form-group full-width">

@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useConnectionsStore } from '@/stores/connections'
 import { connectionsApi } from '@/api/connections'
 import { jobsApi } from '@/api/jobs'
+import NeuSelect, { type SelectOption } from '@/components/common/NeuSelect.vue'
 import type {
   ArtifactFormat,
   CreateJobRequest,
@@ -56,6 +57,51 @@ const availableStrategies = computed<MigrationStrategy[]>(() =>
 
 const diskFormats = computed<ArtifactFormat[]>(() =>
   isHyperVSource.value ? ['Qcow2', 'Raw', 'Vhdx'] : ['Vmdk', 'Qcow2', 'Raw'],
+)
+
+const sourceConnectionOptions = computed<SelectOption[]>(() =>
+  connectionsStore.connections.map((c) => ({
+    value: c.id,
+    label: `${c.name} (${t(`connections.types.${c.type}`)}) — ${c.endpoint}`,
+    icon: c.type === 'VSphere' ? '🌐' : c.type === 'HyperV' ? '🪟' : '⚡',
+  })),
+)
+
+const targetConnectionOptions = computed<SelectOption[]>(() =>
+  connectionsStore.connections.map((c) => ({
+    value: c.id,
+    label: `${c.name} (${t(`connections.types.${c.type}`)}) — ${c.endpoint}`,
+    icon: c.type === 'VSphere' ? '🌐' : c.type === 'HyperV' ? '🪟' : '⚡',
+  })),
+)
+
+const vmOptions = computed<SelectOption[]>(() =>
+  availableVms.value.map((vm) => ({
+    value: vm.id,
+    label: `${vm.name} (${vm.id}) — CPU: ${vm.cpuCount} Cores, Disks: ${vm.diskKeys.length}`,
+    icon: '🖥️',
+  })),
+)
+
+const storageTypeOptions: SelectOption[] = [
+  { value: 'S3', label: 'S3 / MinIO (Object Storage)', icon: '🪣' },
+  { value: 'Local', label: 'Local Filesystem', icon: '📁' },
+]
+
+const strategyOptions = computed<SelectOption[]>(() =>
+  availableStrategies.value.map((s) => ({
+    value: s,
+    label: t(`jobs.strategies.${s}`),
+    icon: s === 'FullCopy' ? '📦' : '⚡',
+  })),
+)
+
+const diskFormatOptions = computed<SelectOption[]>(() =>
+  diskFormats.value.map((f) => ({
+    value: f,
+    label: f,
+    icon: '💾',
+  })),
 )
 
 const selectedVm = computed(() => availableVms.value.find((vm) => vm.id === selectedVmId.value))
@@ -204,24 +250,25 @@ onMounted(() => connectionsStore.fetchConnections())
 
         <div class="form-group">
           <label class="form-label">{{ t('jobs.selectSource') }}</label>
-          <select v-model="form.sourceConnectionId" class="neu-input">
-            <option value="" disabled>{{ t('jobs.selectSource') }}…</option>
-            <option v-for="c in connectionsStore.connections" :key="c.id" :value="c.id">
-              {{ c.name }} ({{ t(`connections.types.${c.type}`) }}) — {{ c.endpoint }}
-            </option>
-          </select>
+          <NeuSelect
+            v-model="form.sourceConnectionId"
+            :options="sourceConnectionOptions"
+            :placeholder="`${t('jobs.selectSource')}…`"
+            full-width
+          />
         </div>
 
         <div v-if="form.sourceConnectionId" class="vm-selection-box">
           <label class="form-label">{{ t('jobs.selectVm') }}</label>
           <div v-if="loadingVms" class="loading-bar">🌀 {{ t('common.loading') }}</div>
           <div v-else-if="vmLoadError" class="neu-banner banner-error">{{ vmLoadError }}</div>
-          <select v-else v-model="selectedVmId" class="neu-input">
-            <option value="" disabled>{{ t('jobs.selectVmPlaceholder') }}</option>
-            <option v-for="vm in availableVms" :key="vm.id" :value="vm.id">
-              {{ vm.name }} ({{ vm.id }}) — CPU: {{ vm.cpuCount }} Cores, Disks: {{ vm.diskKeys.length }}
-            </option>
-          </select>
+          <NeuSelect
+            v-else
+            v-model="selectedVmId"
+            :options="vmOptions"
+            :placeholder="t('jobs.selectVmPlaceholder')"
+            full-width
+          />
 
           <div v-if="selectedVm" class="vm-preview-card">
             <div class="preview-header">
@@ -251,12 +298,12 @@ onMounted(() => connectionsStore.fetchConnections())
 
         <div class="form-group">
           <label class="form-label">{{ t('jobs.selectTarget') }}</label>
-          <select v-model="form.targetConnectionId" class="neu-input">
-            <option value="" disabled>{{ t('jobs.selectTarget') }}…</option>
-            <option v-for="c in connectionsStore.connections" :key="c.id" :value="c.id">
-              {{ c.name }} ({{ t(`connections.types.${c.type}`) }}) — {{ c.endpoint }}
-            </option>
-          </select>
+          <NeuSelect
+            v-model="form.targetConnectionId"
+            :options="targetConnectionOptions"
+            :placeholder="`${t('jobs.selectTarget')}…`"
+            full-width
+          />
         </div>
       </div>
 
@@ -267,10 +314,11 @@ onMounted(() => connectionsStore.fetchConnections())
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">{{ t('connections.type') }}</label>
-            <select v-model="form.storageTarget.type" class="neu-input">
-              <option value="S3">S3 / MinIO (Object Storage)</option>
-              <option value="Local">Local Filesystem</option>
-            </select>
+            <NeuSelect
+              v-model="form.storageTarget.type"
+              :options="storageTypeOptions"
+              full-width
+            />
           </div>
 
           <div class="form-group">
@@ -297,18 +345,21 @@ onMounted(() => connectionsStore.fetchConnections())
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">{{ t('jobs.strategy') }}</label>
-            <select v-model="form.strategy" class="neu-input" :disabled="isHyperVSource">
-              <option v-for="strategy in availableStrategies" :key="strategy" :value="strategy">
-                {{ t(`jobs.strategies.${strategy}`) }}
-              </option>
-            </select>
+            <NeuSelect
+              v-model="form.strategy"
+              :options="strategyOptions"
+              :disabled="isHyperVSource"
+              full-width
+            />
           </div>
 
           <div class="form-group">
             <label class="form-label">{{ t('jobs.diskFormat') }}</label>
-            <select v-model="form.options.targetDiskFormat" class="neu-input">
-              <option v-for="f in diskFormats" :key="f" :value="f">{{ f }}</option>
-            </select>
+            <NeuSelect
+              v-model="form.options.targetDiskFormat"
+              :options="diskFormatOptions"
+              full-width
+            />
           </div>
 
           <div class="form-group full-width">

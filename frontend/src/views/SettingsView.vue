@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
 import { api } from '@/api/client'
+import NeuSelect, { type SelectOption } from '@/components/common/NeuSelect.vue'
 
 const { t, locale } = useI18n()
 const { setThemeMode, resolvedTheme } = useTheme()
@@ -13,6 +14,11 @@ const activationResult = ref<string | null>(null)
 const activationError = ref<string | null>(null)
 const currentLocale = ref(locale.value)
 const showRenewalForm = ref(false)
+
+const languageOptions: SelectOption[] = [
+  { value: 'zh-TW', label: '繁體中文 (Traditional Chinese)', icon: '🇹🇼' },
+  { value: 'en-US', label: 'English (US)', icon: '🇺🇸' },
+]
 
 interface LicenseInfo {
   id: string
@@ -101,10 +107,11 @@ onMounted(() => {
 
       <div class="setting-row">
         <label class="setting-label">{{ t('settings.language') }}</label>
-        <select v-model="currentLocale" class="neu-input" @change="changeLocale">
-          <option value="zh-TW">繁體中文 (Traditional Chinese)</option>
-          <option value="en-US">English (US)</option>
-        </select>
+        <NeuSelect
+          v-model="currentLocale"
+          :options="languageOptions"
+          @change="changeLocale"
+        />
       </div>
     </div>
 
@@ -294,6 +301,17 @@ onMounted(() => {
   border-radius: 20px;
   box-shadow: var(--neu-shadow);
   padding: 28px;
+  position: relative;
+  overflow: visible;
+}
+
+.panel {
+  position: relative;
+  z-index: 1;
+}
+
+.panel:has(.neu-select-wrapper.is-open) {
+  z-index: 30;
 }
 
 .panel-header {
