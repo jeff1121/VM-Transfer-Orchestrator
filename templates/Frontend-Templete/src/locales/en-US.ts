@@ -1,0 +1,46 @@
+export default {
+  common: {
+    online: 'Online',
+    offline: 'Offline',
+    save: 'Save',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    delete: 'Delete',
+    loading: 'Loading…',
+    noData: 'No data',
+    prev: 'Previous',
+    next: 'Next',
+  },
+  nav: {
+    dashboard: 'Dashboard',
+    analytics: 'Analytics',
+    management: 'Management',
+    settings: 'Settings',
+  },
+  settings: {
+    title: 'Settings',
+    language: 'Language',
+    theme: 'Theme',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    version: 'Version',
+  },
+  notifications: {
+    title: 'Notifications',
+    empty: 'No notifications',
+    markAllRead: 'Mark all as read',
+    offlineReady: 'Offline mode is ready. Data is cached locally.',
+    types: {
+      system: 'System Alert',
+      success: 'Success',
+      error: 'Error',
+    },
+  },
+  auth: {
+    login: 'Log In',
+    username: 'Username',
+    password: 'Password',
+    loggingIn: 'Logging in…',
+    loginFailed: 'Invalid username or password',
+  },
+}

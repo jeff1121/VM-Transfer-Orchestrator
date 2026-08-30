@@ -1,0 +1,46 @@
+export default {
+  common: {
+    online: '即時連線中',
+    offline: '離線中',
+    save: '儲存',
+    cancel: '取消',
+    confirm: '確認',
+    delete: '刪除',
+    loading: '載入中…',
+    noData: '尚無資料',
+    prev: '上一頁',
+    next: '下一頁',
+  },
+  nav: {
+    dashboard: '儀表板',
+    analytics: '數據分析',
+    management: '管理清單',
+    settings: '系統設定',
+  },
+  settings: {
+    title: '系統設定',
+    language: '語言設定',
+    theme: '佈景主題',
+    themeLight: '淺色',
+    themeDark: '深色',
+    version: '版本',
+  },
+  notifications: {
+    title: '通知中心',
+    empty: '目前沒有任何通知',
+    markAllRead: '全部標記已讀',
+    offlineReady: '離線快取已就緒，網路中斷時可使用快取資料。',
+    types: {
+      system: '系統公告',
+      success: '執行成功',
+      error: '發生錯誤',
+    },
+  },
+  auth: {
+    login: '登入',
+    username: '使用者名稱',
+    password: '密碼',
+    loggingIn: '登入中…',
+    loginFailed: '登入失敗，請確認帳號密碼',
+  },
+}
